@@ -1,0 +1,295 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #eef2f5;
+  color: #17202a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+select {
+  font: inherit;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  background: #ffffff;
+  border-right: 1px solid #d6dee7;
+}
+
+.brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: #1f6fb2;
+  color: #ffffff;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+h1,
+h2,
+h3,
+p,
+dl {
+  margin: 0;
+}
+
+h1 {
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.brand p,
+.chart-title p,
+.eyebrow,
+.field span,
+dt {
+  color: #647386;
+}
+
+.brand p,
+.chart-title p,
+.field span,
+dt,
+dd,
+.status,
+.metric-grid span {
+  font-size: 13px;
+}
+
+.control-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+  font-weight: 700;
+}
+
+select {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid #bac7d3;
+  border-radius: 7px;
+  background: #fdfefe;
+  color: #17202a;
+}
+
+select:disabled {
+  opacity: 0.55;
+}
+
+.primary {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid #1f6fb2;
+  border-radius: 7px;
+  background: #1f6fb2;
+  color: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.details {
+  padding-top: 18px;
+  border-top: 1px solid #e2e8ef;
+}
+
+.details h2 {
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.details dl {
+  display: grid;
+  gap: 12px;
+}
+
+.details dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #26313d;
+}
+
+.workspace {
+  min-width: 0;
+  padding: 24px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 18px;
+}
+
+.eyebrow {
+  margin-bottom: 5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.topbar h2 {
+  font-size: 28px;
+  line-height: 1.15;
+}
+
+.status {
+  max-width: 360px;
+  padding: 8px 10px;
+  border: 1px solid #d8e1e9;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #445466;
+}
+
+.status.busy {
+  border-color: #a9c8e8;
+  color: #1f6fb2;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.metric-grid article {
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid #dbe3eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.metric-grid span {
+  display: block;
+  margin-bottom: 7px;
+  color: #647386;
+}
+
+.metric-grid strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 16px;
+}
+
+.chart-panel {
+  padding: 16px;
+  border: 1px solid #dbe3eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.chart-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.chart-title h3 {
+  font-size: 18px;
+}
+
+.chart,
+.empty-chart {
+  width: 100%;
+  height: calc(100vh - 260px);
+  min-height: 460px;
+  border: 1px solid #dfe7ee;
+  border-radius: 7px;
+  background: #fbfcfd;
+}
+
+.chart {
+  overflow: hidden;
+}
+
+.empty-chart {
+  display: grid;
+  place-items: center;
+  color: #647386;
+}
+
+@media (max-width: 1100px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid #d6dee7;
+  }
+
+  .control-stack {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chart,
+  .empty-chart {
+    height: 58vh;
+  }
+}
+
+@media (max-width: 680px) {
+  .sidebar,
+  .workspace {
+    padding: 16px;
+  }
+
+  .control-stack,
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    display: grid;
+  }
+
+  .topbar h2 {
+    font-size: 22px;
+  }
+}
