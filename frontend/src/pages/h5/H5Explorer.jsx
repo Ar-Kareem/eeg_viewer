@@ -322,6 +322,7 @@ function fileCardClass(row) {
 
 export default function H5Explorer({ initialSelection = {}, onBack }) {
   const [subjects, setSubjects] = useState([]);
+  const [subjectFileCounts, setSubjectFileCounts] = useState({});
   const [subject, setSubject] = useState("");
   const [scanRows, setScanRows] = useState([]);
   const [selectedId, setSelectedId] = useState("");
@@ -356,10 +357,22 @@ export default function H5Explorer({ initialSelection = {}, onBack }) {
     api("/api/subjects")
       .then((payload) => {
         if (cancelled) return;
-        setSubjects(payload.subjects || []);
+        const nextSubjects = payload.subjects || [];
+        setSubjects(nextSubjects);
         const requestedSubject = initialSelection.subject || "";
-        setSubject(payload.subjects?.includes(requestedSubject) ? requestedSubject : payload.subjects?.[0] || "");
-        setStatus(payload.subjects?.length ? "Pick a subject to scan." : "No subjects found.");
+        setSubject(nextSubjects.includes(requestedSubject) ? requestedSubject : nextSubjects[0] || "");
+        setStatus(nextSubjects.length ? "Pick a subject to scan." : "No subjects found.");
+        return Promise.all(
+          nextSubjects.map((item) =>
+            api("/api/files", { subject: item })
+              .then((filesPayload) => [item, filesPayload.files?.length || 0])
+              .catch(() => [item, null])
+          )
+        );
+      })
+      .then((entries) => {
+        if (cancelled || !entries) return;
+        setSubjectFileCounts(Object.fromEntries(entries));
       })
       .catch((error) => {
         if (!cancelled) setStatus(error.message);
@@ -616,6 +629,10 @@ export default function H5Explorer({ initialSelection = {}, onBack }) {
     };
   }, [scanRows]);
 
+  const totalRecordingSeconds = useMemo(() => {
+    return scanRows.reduce((sum, row) => sum + (Number(row.info?.recording_seconds) || 0), 0);
+  }, [scanRows]);
+
   const qualityRows = useMemo(() => {
     return [...(quality?.channels || [])].sort((a, b) => {
       const left = a[qualitySort.field];
@@ -693,8 +710,12 @@ export default function H5Explorer({ initialSelection = {}, onBack }) {
                 onClick={() => setSubject(item)}
                 type="button"
               >
-                <span>Subject</span>
                 <strong>S_{item}</strong>
+                <small>
+                  {subjectFileCounts[item] === undefined || subjectFileCounts[item] === null
+                    ? "-"
+                    : `${formatInteger(subjectFileCounts[item])} files`}
+                </small>
               </button>
             ))}
           </div>
@@ -764,6 +785,7 @@ export default function H5Explorer({ initialSelection = {}, onBack }) {
               </button>
             ))}
           </div>
+          <div className="h5-file-total">SUM {formatDuration(totalRecordingSeconds)}</div>
         </section>
 
         {info ? (

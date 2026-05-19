@@ -683,11 +683,16 @@ select:disabled {
   background: #eef6ff;
 }
 
-.h5-subject-card span {
+.h5-subject-card span,
+.h5-subject-card small {
   color: #647386;
   font-size: 10px;
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.h5-subject-card small {
+  display: block;
 }
 
 .h5-subject-card strong {
@@ -775,6 +780,20 @@ select:disabled {
 .h5-file-card.error {
   border-color: #c43b47;
   background: #fff1f2;
+}
+
+.h5-file-total {
+  width: fit-content;
+  justify-self: end;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border: 1px solid #d6dee7;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #26313d;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 900;
 }
 
 .collapsible-panel {
