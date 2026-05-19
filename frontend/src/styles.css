@@ -1318,6 +1318,76 @@ select:disabled {
   background: #fdecef;
 }
 
+.candidate-workspace,
+.channel-map-workspace {
+  gap: 14px;
+}
+
+.candidate-metrics {
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+}
+
+.candidate-table-wrap {
+  max-height: calc(100vh - 320px);
+}
+
+.candidate-table th,
+.candidate-table td {
+  white-space: nowrap;
+}
+
+.channel-map-metrics {
+  grid-template-columns: repeat(3, minmax(140px, 1fr));
+}
+
+.coordinate-table-wrap {
+  max-height: 240px;
+}
+
+.channel-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.channel-group-card {
+  align-self: start;
+}
+
+.channel-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 8px;
+}
+
+.channel-chip {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid #dfe7ee;
+  border-radius: 7px;
+  background: #fbfcfd;
+  color: inherit;
+  text-decoration: none;
+}
+
+.channel-chip:hover {
+  border-color: #2b6cb0;
+  background: #eef6ff;
+}
+
+.channel-chip strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.channel-chip span {
+  color: #647386;
+  font-size: 11px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 1100px) {
   .shell {
     grid-template-columns: 1fr;
@@ -1360,11 +1430,14 @@ select:disabled {
   .spectral-metrics,
   .montage-metrics,
   .artifact-metrics,
+  .candidate-metrics,
+  .channel-map-metrics,
   .h5-grid,
   .h5-file-grid,
   .event-grid,
   .spectral-grid,
-  .montage-grid {
+  .montage-grid,
+  .channel-group-grid {
     grid-template-columns: 1fr;
   }
 

@@ -27,14 +27,14 @@
 - [x] Add accept/reject/unsure labels for candidate windows.
 
 ## 6 Seizure / High-Amplitude Candidate Finder
-- [ ] Surface windows with unusually high amplitude, rhythmicity, or energy changes.
-- [ ] Rank candidate windows by score.
-- [ ] Add jump-to-window controls in EEG Viewer.
+- [x] Surface windows with unusually high amplitude, rhythmicity, or energy changes.
+- [x] Rank candidate windows by score.
+- [x] Add jump-to-window controls in EEG Viewer.
 
 ## 7 Channel Map / Electrode Localization
-- [ ] Detect electrode coordinates when available.
-- [ ] Visualize electrodes by label, region, hemisphere, grid, strip, or depth grouping.
-- [ ] Link electrode selections to traces.
+- [x] Detect electrode coordinates when available.
+- [x] Visualize electrodes by label, region, hemisphere, grid, strip, or depth grouping.
+- [x] Link electrode selections to traces.
 
 ## 8 Metadata / Cohort Browser
 - [ ] Browse subjects, files, channel counts, durations, sample rates, iEEG labels, file sizes, and available modalities.

@@ -65,6 +65,24 @@ const SLOP_CARDS = [
     stats: ["Events", "Timeline", "Jump"],
     icon: "EV",
   },
+  {
+    id: "high-amplitude-candidates",
+    title: "Candidate Finder",
+    kicker: "High amplitude",
+    description: "Surface high-amplitude or rhythmic candidate windows and jump into EEG context.",
+    action: "Open Finder",
+    stats: ["Amplitude", "Rhythmicity", "Jump"],
+    icon: "HA",
+  },
+  {
+    id: "channel-map",
+    title: "Channel Map",
+    kicker: "Electrodes",
+    description: "Group iEEG channels by label prefix and jump from channel chips into traces.",
+    action: "Open Map",
+    stats: ["Groups", "Labels", "Links"],
+    icon: "CM",
+  },
 ];
 
 function CardButton({ card, onOpen }) {
