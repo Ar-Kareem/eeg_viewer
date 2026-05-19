@@ -1163,6 +1163,63 @@ select:disabled {
   font-weight: 800;
 }
 
+.spectral-workspace {
+  gap: 14px;
+}
+
+.spectral-metrics {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+}
+
+.metric-warn {
+  border-color: #d8b45d !important;
+  background: #fff8e6 !important;
+}
+
+.spectral-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.spectral-chart {
+  width: 100%;
+  height: 420px;
+  border: 1px solid #dfe7ee;
+  border-radius: 7px;
+  background: #fbfcfd;
+  overflow: hidden;
+}
+
+.band-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.band-card {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid #dfe7ee;
+  border-radius: 7px;
+  background: #fbfcfd;
+}
+
+.band-card span,
+.band-card small {
+  color: #647386;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.band-card strong {
+  color: #17202a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 18px;
+}
+
 @media (max-width: 1100px) {
   .shell {
     grid-template-columns: 1fr;
@@ -1202,9 +1259,11 @@ select:disabled {
   .h5-metrics,
   .quality-metrics,
   .event-metrics,
+  .spectral-metrics,
   .h5-grid,
   .h5-file-grid,
-  .event-grid {
+  .event-grid,
+  .spectral-grid {
     grid-template-columns: 1fr;
   }
 

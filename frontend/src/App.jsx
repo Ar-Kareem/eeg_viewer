@@ -4,6 +4,7 @@ import H5Explorer from "./pages/h5/H5Explorer.jsx";
 import PageCards from "./pages/home/PageCards.jsx";
 import ChannelQualityDashboard from "./pages/quality/ChannelQualityDashboard.jsx";
 import EventExplorer from "./pages/events/EventExplorer.jsx";
+import SpectralViewer from "./pages/spectral/SpectralViewer.jsx";
 
 function parseLocation() {
   const parts = window.location.pathname.split("/").filter(Boolean);
@@ -15,6 +16,9 @@ function parseLocation() {
   }
   if (parts[0] === "events") {
     return { page: "event-explorer", eeg: {} };
+  }
+  if (parts[0] === "spectral") {
+    return { page: "spectral-viewer", eeg: {} };
   }
 
   if (parts[0] !== "eeg") {
@@ -59,6 +63,9 @@ export default function App() {
     } else if (page === "event-explorer") {
       window.history.pushState(null, "", "/events");
       setRoute(parseLocation());
+    } else if (page === "spectral-viewer") {
+      window.history.pushState(null, "", "/spectral");
+      setRoute(parseLocation());
     }
   };
 
@@ -81,6 +88,10 @@ export default function App() {
 
   if (route.page === "event-explorer") {
     return <EventExplorer onBack={goHome} />;
+  }
+
+  if (route.page === "spectral-viewer") {
+    return <SpectralViewer onBack={goHome} />;
   }
 
   return <PageCards onOpen={openPage} />;

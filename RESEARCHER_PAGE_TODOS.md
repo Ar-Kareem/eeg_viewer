@@ -11,10 +11,10 @@
 - [x] Support event-centered trace windows.
 
 ## 3 Spectral Viewer
-- [ ] Plot power spectrum for selected channel/window.
-- [ ] Add spectrogram view.
-- [ ] Add band power summaries over time.
-- [ ] Highlight line noise and broad frequency abnormalities.
+- [x] Plot power spectrum for selected channel/window.
+- [x] Add spectrogram view.
+- [x] Add band power summaries over time.
+- [x] Highlight line noise and broad frequency abnormalities.
 
 ## 4 Montage Builder
 - [ ] Support referential and bipolar derivations.

@@ -21,6 +21,15 @@ const MAIN_CARDS = [
 
 const SLOP_CARDS = [
   {
+    id: "spectral-viewer",
+    title: "Spectral Viewer",
+    kicker: "Frequency analysis",
+    description: "Inspect power spectra, spectrograms, EEG band power, and 60 Hz line-noise signals.",
+    action: "Open Spectral",
+    stats: ["PSD", "Bands", "Noise"],
+    icon: "SP",
+  },
+  {
     id: "channel-quality",
     title: "Channel Quality",
     kicker: "QC ranking",
