@@ -87,25 +87,20 @@ def read_channels(subject: str, raw_stem: str) -> list[dict[str, object]]:
         with csv_path.open(newline="") as handle:
             reader = csv.DictReader(handle)
             for row in reader:
-                if row.get("is_ieeg", "").strip().lower() != "true":
+                is_ieeg = row.get("is_ieeg") or ""
+                label = row.get("correct_ch") or row.get("edf_ch") or row.get("laplacian") or row.get("name") or ""
+                if not is_ieeg and str(row.get("name") or "").strip().lower() in {"true", "false"}:
+                    is_ieeg = row.get("name") or ""
+                if str(is_ieeg).strip().lower() != "true":
                     continue
                 channels.append(
                     {
                         "id": int(row["id"]),
-                        "edf_ch": row.get("edf_ch", ""),
-                        "correct_ch": row.get("correct_ch", ""),
-                        "is_ieeg": row.get("is_ieeg", ""),
+                        "edf_ch": row.get("edf_ch") or "",
+                        "correct_ch": label,
+                        "is_ieeg": is_ieeg,
                     }
                 )
         return channels
 
-    with h5py.File(h5_path, "r") as h5_file:
-        channel_ids = []
-        for name in h5_file["data"].keys():
-            if name.startswith("channel_"):
-                channel_ids.append(int(name.split("_", 1)[1]))
-
-    return [
-        {"id": channel_id, "edf_ch": "", "correct_ch": f"channel_{channel_id}", "is_ieeg": ""}
-        for channel_id in sorted(channel_ids)
-    ]
+    return []

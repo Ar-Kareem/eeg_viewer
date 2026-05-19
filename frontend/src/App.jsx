@@ -12,7 +12,17 @@ import HighAmplitudeCandidates from "./pages/candidates/HighAmplitudeCandidates.
 function parseLocation() {
   const parts = window.location.pathname.split("/").filter(Boolean);
   if (parts[0] === "h5") {
-    return { page: "h5-explorer", eeg: {} };
+    const params = new URLSearchParams(window.location.search);
+    const subjectParam = params.get("S") || "";
+    const fileParam = params.get("FILE");
+    return {
+      page: "h5-explorer",
+      h5: {
+        subject: subjectParam.startsWith("S_") ? subjectParam.slice(2) : subjectParam,
+        fileIndex: fileParam === null ? null : Number(fileParam),
+      },
+      eeg: {},
+    };
   }
   if (parts[0] === "quality") {
     return { page: "channel-quality", eeg: {} };
@@ -99,7 +109,7 @@ export default function App() {
   }
 
   if (route.page === "h5-explorer") {
-    return <H5Explorer onBack={goHome} />;
+    return <H5Explorer initialSelection={route.h5} onBack={goHome} />;
   }
 
   if (route.page === "channel-quality") {

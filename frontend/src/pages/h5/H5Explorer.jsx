@@ -320,7 +320,7 @@ function fileCardClass(row) {
   return "no-datasets";
 }
 
-export default function H5Explorer({ onBack }) {
+export default function H5Explorer({ initialSelection = {}, onBack }) {
   const [subjects, setSubjects] = useState([]);
   const [subject, setSubject] = useState("");
   const [scanRows, setScanRows] = useState([]);
@@ -345,6 +345,11 @@ export default function H5Explorer({ onBack }) {
   const [status, setStatus] = useState("Loading subjects...");
   const [loading, setLoading] = useState(false);
   const scanVersion = useRef(0);
+  const initialFileIndexRef = useRef(
+    initialSelection.fileIndex === null || initialSelection.fileIndex === undefined || Number.isNaN(Number(initialSelection.fileIndex))
+      ? null
+      : Number(initialSelection.fileIndex)
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -352,7 +357,8 @@ export default function H5Explorer({ onBack }) {
       .then((payload) => {
         if (cancelled) return;
         setSubjects(payload.subjects || []);
-        setSubject(payload.subjects?.[0] || "");
+        const requestedSubject = initialSelection.subject || "";
+        setSubject(payload.subjects?.includes(requestedSubject) ? requestedSubject : payload.subjects?.[0] || "");
         setStatus(payload.subjects?.length ? "Pick a subject to scan." : "No subjects found.");
       })
       .catch((error) => {
@@ -396,6 +402,11 @@ export default function H5Explorer({ onBack }) {
           error: "",
         }))
       );
+      const requestedFileIndex = initialFileIndexRef.current;
+      if (requestedFileIndex !== null && files[requestedFileIndex]) {
+        setSelectedId(files[requestedFileIndex].id);
+        initialFileIndexRef.current = null;
+      }
       setStatus(files.length ? `Scanning 0/${files.length} H5 files...` : "No H5 files found for this subject.");
       if (!files.length) {
         setLoading(false);
@@ -457,6 +468,19 @@ export default function H5Explorer({ onBack }) {
     [scanRows, selectedId]
   );
   const info = selectedRow?.info || null;
+
+  useEffect(() => {
+    if (!subject) return;
+    const params = new URLSearchParams();
+    params.set("S", `S_${subject}`);
+    if (selectedRow) {
+      params.set("FILE", String(selectedRow.index));
+    }
+    const nextUrl = `/h5?${params.toString()}`;
+    if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
+      window.history.replaceState(null, "", nextUrl);
+    }
+  }, [selectedRow, subject]);
 
   useEffect(() => {
     setSelectedPath(info?.nodes?.[0]?.path || "");
@@ -730,7 +754,9 @@ export default function H5Explorer({ onBack }) {
                       ? (
                           <>
                             <span>{formatInteger(row.info?.channel_count || 0)} Ch</span>
-                            <span>{formatInteger(row.info?.ieeg_channel_count || 0)} iEEG Ch</span>
+                            {row.info?.ieeg_channel_count ? (
+                              <span>{formatInteger(row.info.ieeg_channel_count)} iEEG Ch</span>
+                            ) : null}
                           </>
                         )
                       : row.status}
