@@ -36,17 +36,47 @@ function formatMetric(value) {
   return Number(value).toExponential(4);
 }
 
-function EegChart({ data }) {
+function percentileRange(values, lowerPercentile, upperPercentile) {
+  const sortedValues = values.filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
+  if (!sortedValues.length) return undefined;
+  const percentile = (p) =>
+    sortedValues[Math.min(sortedValues.length - 1, Math.max(0, Math.floor((p / 100) * (sortedValues.length - 1))))];
+  const lower = percentile(lowerPercentile);
+  const upper = percentile(upperPercentile);
+  return lower === upper ? undefined : [lower, upper];
+}
+
+function formatXValues(values, xScaleMode, sampleRate) {
+  if (xScaleMode !== "seconds") return values;
+  const rate = Math.max(1, Number(sampleRate) || 1);
+  return values.map((value) => value / rate);
+}
+
+function formatXValue(value, xScaleMode, sampleRate) {
+  if (xScaleMode !== "seconds") return value;
+  return value / Math.max(1, Number(sampleRate) || 1);
+}
+
+function xAxisTitle(xScaleMode) {
+  return xScaleMode === "seconds" ? "Seconds" : "Sample index";
+}
+
+function xHoverLabel(xScaleMode) {
+  return xScaleMode === "seconds" ? "seconds" : "sample";
+}
+
+function EegChart({ data, xScaleMode, sampleRate, yRange }) {
   if (!data) {
     return <div className="empty-chart">Select a subject, H5 file, and iEEG channel.</div>;
   }
 
+  const xValues = formatXValues(data.x, xScaleMode, sampleRate);
   const snippetShapes = (data.snippets || []).map((snippet, index) => ({
     type: "rect",
     xref: "x",
     yref: "paper",
-    x0: snippet.start,
-    x1: snippet.stop,
+    x0: formatXValue(snippet.start, xScaleMode, sampleRate),
+    x1: formatXValue(snippet.stop, xScaleMode, sampleRate),
     y0: 0,
     y1: 1,
     fillcolor: CHANNEL_COLORS[index % CHANNEL_COLORS.length],
@@ -57,7 +87,7 @@ function EegChart({ data }) {
   const snippetAnnotations = (data.snippets || []).map((snippet, index) => ({
     xref: "x",
     yref: "paper",
-    x: (snippet.start + snippet.stop) / 2,
+    x: formatXValue((snippet.start + snippet.stop) / 2, xScaleMode, sampleRate),
     y: 0.985,
     text: `S${index + 1}`,
     showarrow: false,
@@ -75,12 +105,12 @@ function EegChart({ data }) {
         divId="single-channel-plot"
         data={[
           {
-            x: data.x,
+            x: xValues,
             y: data.y,
             type: "scattergl",
             mode: "lines",
             line: { color: "#1f6fb2", width: 1.5 },
-            hovertemplate: "sample %{x}<br>value %{y:.6e}<extra></extra>",
+            hovertemplate: `${xHoverLabel(xScaleMode)} %{x}<br>value %{y:.6e}<extra></extra>`,
           },
         ]}
         layout={{
@@ -98,7 +128,7 @@ function EegChart({ data }) {
             size: 12,
           },
           xaxis: {
-            title: { text: "Sample index" },
+            title: { text: xAxisTitle(xScaleMode) },
             automargin: true,
             zeroline: false,
             gridcolor: "#dde5ec",
@@ -112,6 +142,7 @@ function EegChart({ data }) {
             gridcolor: "#dde5ec",
             exponentformat: "e",
             separatethousands: true,
+            range: yRange,
           },
         }}
         config={{
@@ -127,7 +158,7 @@ function EegChart({ data }) {
   );
 }
 
-function SnippetGrid({ snippets, yRange }) {
+function SnippetGrid({ snippets, yRange, xScaleMode, sampleRate }) {
   if (!snippets?.length) {
     return null;
   }
@@ -137,21 +168,27 @@ function SnippetGrid({ snippets, yRange }) {
       {snippets.map((snippet, index) => (
         <article className="snippet-card" key={`${snippet.start}-${snippet.stop}`}>
           <header>
-            <span>Random 1s sample {index + 1}</span>
+            <span>sample {index + 1}</span>
             <strong>
-              {snippet.start.toLocaleString()}-{snippet.stop.toLocaleString()}
+              {xScaleMode === "seconds"
+                ? `${formatXValue(snippet.start, xScaleMode, sampleRate).toFixed(2)}-${formatXValue(
+                    snippet.stop,
+                    xScaleMode,
+                    sampleRate
+                  ).toFixed(2)}s`
+                : `${snippet.start.toLocaleString()}-${snippet.stop.toLocaleString()}`}
             </strong>
           </header>
           <Plot
             className="snippet-plot"
             data={[
               {
-                x: snippet.x,
+                x: formatXValues(snippet.x, xScaleMode, sampleRate),
                 y: snippet.y,
                 type: "scattergl",
                 mode: "lines",
                 line: { color: CHANNEL_COLORS[index % CHANNEL_COLORS.length], width: 1.25 },
-                hovertemplate: "sample %{x}<br>value %{y:.6e}<extra></extra>",
+                hovertemplate: `${xHoverLabel(xScaleMode)} %{x}<br>value %{y:.6e}<extra></extra>`,
               },
             ]}
             layout={{
@@ -189,29 +226,39 @@ function SnippetGrid({ snippets, yRange }) {
   );
 }
 
-function AllChannelsChart({ data }) {
+function AllChannelsChart({ data, lowerPercentile, upperPercentile, xScaleMode, sampleRate }) {
   const chartHeight = data?.traces?.length ? Math.max(900, data.traces.length * 34 + 160) : 620;
   const plotData = useMemo(() => {
     if (!data?.traces?.length) return [];
     const rowCount = data.traces.length;
+    const sortedValues = data.traces
+      .flatMap((trace) => trace.y)
+      .filter((value) => Number.isFinite(value))
+      .sort((a, b) => a - b);
+    const percentile = (p) => {
+      if (!sortedValues.length) return 0;
+      return sortedValues[Math.min(sortedValues.length - 1, Math.max(0, Math.floor(p * (sortedValues.length - 1))))];
+    };
+    const globalMin = percentile(lowerPercentile / 100);
+    const globalMax = percentile(upperPercentile / 100);
+    const globalSpan = globalMax - globalMin || 1;
 
     return data.traces.map((trace, index) => {
-      const min = trace.min ?? Math.min(...trace.y);
-      const max = trace.max ?? Math.max(...trace.y);
-      const span = max - min || 1;
       const row = rowCount - index;
       return {
-        x: trace.x,
-        y: trace.y.map((value) => row + ((value - min) / span - 0.5) * 0.5),
+        x: formatXValues(trace.x, xScaleMode, sampleRate),
+        y: trace.y.map((value) => row + ((value - globalMin) / globalSpan - 0.5) * 0.82),
         type: "scattergl",
         mode: "lines",
         name: `${trace.id}: ${trace.label}`,
         line: { color: CHANNEL_COLORS[index % CHANNEL_COLORS.length], width: 1 },
-        hovertemplate: `${trace.id}: ${trace.label}<br>sample %{x}<br>scaled %{customdata:.6e}<extra></extra>`,
+        hovertemplate: `${trace.id}: ${trace.label}<br>${xHoverLabel(
+          xScaleMode
+        )} %{x}<br>scaled %{customdata:.6e}<extra></extra>`,
         customdata: trace.y,
       };
     });
-  }, [data]);
+  }, [data, lowerPercentile, sampleRate, upperPercentile, xScaleMode]);
 
   if (!data) {
     return <div className="empty-chart">Loading stacked iEEG traces...</div>;
@@ -238,7 +285,7 @@ function AllChannelsChart({ data }) {
           size: 11,
         },
         xaxis: {
-          title: { text: "Sample index" },
+          title: { text: xAxisTitle(xScaleMode) },
           automargin: true,
           zeroline: false,
           gridcolor: "#e5ebf1",
@@ -277,7 +324,173 @@ function SelectField({ label, value, onChange, children, disabled = false }) {
   );
 }
 
-export default function EegViewer({ onBack }) {
+function StackedSettingsModal({
+  lowerPercentile,
+  upperPercentile,
+  samplesPerChannel,
+  onClose,
+  onApply,
+}) {
+  const [draftLowerPercentile, setDraftLowerPercentile] = useState(lowerPercentile);
+  const [draftUpperPercentile, setDraftUpperPercentile] = useState(upperPercentile);
+  const [draftSamplesPerChannel, setDraftSamplesPerChannel] = useState(samplesPerChannel);
+
+  const applyDraft = () => {
+    const normalizedLower = Math.max(0, Math.min(99.99, Number(draftLowerPercentile) || 0));
+    const normalizedUpper = Math.max(normalizedLower + 0.01, Math.min(100, Number(draftUpperPercentile) || 100));
+    const normalizedSamples = Math.max(25, Math.floor(Number(draftSamplesPerChannel) || DEFAULT_MAX_POINTS));
+    onApply({
+      lowerPercentile: normalizedLower,
+      upperPercentile: normalizedUpper,
+      samplesPerChannel: normalizedSamples,
+    });
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <section className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="stacked-settings-title">
+        <header>
+          <div>
+            <p className="eyebrow">Stacked plot</p>
+            <h2 id="stacked-settings-title">Settings</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close settings">
+            x
+          </button>
+        </header>
+
+        <div className="modal-fields">
+          <label className="field">
+            <span>Lower percentile</span>
+            <input
+              type="number"
+              min="0"
+              max="99.99"
+              step="0.05"
+              value={draftLowerPercentile}
+              onChange={(event) => setDraftLowerPercentile(event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Upper percentile</span>
+            <input
+              type="number"
+              min="0.01"
+              max="100"
+              step="0.05"
+              value={draftUpperPercentile}
+              onChange={(event) => setDraftUpperPercentile(event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Samples per channel</span>
+            <input
+              type="number"
+              min="25"
+              step="25"
+              value={draftSamplesPerChannel}
+              onChange={(event) => setDraftSamplesPerChannel(event.target.value)}
+            />
+          </label>
+        </div>
+
+        <footer>
+          <button className="secondary" type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="primary" type="button" onClick={applyDraft}>
+            Apply
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+function MainPlotSettingsModal({
+  lowerPercentile,
+  upperPercentile,
+  maxPoints,
+  onClose,
+  onApply,
+}) {
+  const [draftLowerPercentile, setDraftLowerPercentile] = useState(lowerPercentile);
+  const [draftUpperPercentile, setDraftUpperPercentile] = useState(upperPercentile);
+  const [draftMaxPoints, setDraftMaxPoints] = useState(maxPoints);
+
+  const applyDraft = () => {
+    const normalizedLower = Math.max(0, Math.min(99.99, Number(draftLowerPercentile) || 0));
+    const normalizedUpper = Math.max(normalizedLower + 0.01, Math.min(100, Number(draftUpperPercentile) || 100));
+    const normalizedMaxPoints = Math.max(100, Math.floor(Number(draftMaxPoints) || DEFAULT_MAX_POINTS));
+    onApply({
+      lowerPercentile: normalizedLower,
+      upperPercentile: normalizedUpper,
+      maxPoints: normalizedMaxPoints,
+    });
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <section className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="main-settings-title">
+        <header>
+          <div>
+            <p className="eyebrow">Single-channel plot</p>
+            <h2 id="main-settings-title">Settings</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close settings">
+            x
+          </button>
+        </header>
+
+        <div className="modal-fields">
+          <label className="field">
+            <span>Lower y percentile</span>
+            <input
+              type="number"
+              min="0"
+              max="99.99"
+              step="0.05"
+              value={draftLowerPercentile}
+              onChange={(event) => setDraftLowerPercentile(event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Upper y percentile</span>
+            <input
+              type="number"
+              min="0.01"
+              max="100"
+              step="0.05"
+              value={draftUpperPercentile}
+              onChange={(event) => setDraftUpperPercentile(event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Max plotted points</span>
+            <input
+              type="number"
+              min="100"
+              step="100"
+              value={draftMaxPoints}
+              onChange={(event) => setDraftMaxPoints(event.target.value)}
+            />
+          </label>
+        </div>
+
+        <footer>
+          <button className="secondary" type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="primary" type="button" onClick={applyDraft}>
+            Apply
+          </button>
+        </footer>
+      </section>
+    </div>
+  );
+}
+
+export default function EegViewer({ initialSelection = {}, onBack }) {
   const [subjects, setSubjects] = useState([]);
   const [files, setFiles] = useState([]);
   const [channels, setChannels] = useState([]);
@@ -289,6 +502,15 @@ export default function EegViewer({ onBack }) {
   const [showAllChannels, setShowAllChannels] = useState(false);
   const [plotData, setPlotData] = useState(null);
   const [allChannelData, setAllChannelData] = useState(null);
+  const [showMainPlotSettings, setShowMainPlotSettings] = useState(false);
+  const [mainLowerPercentile, setMainLowerPercentile] = useState(0.25);
+  const [mainUpperPercentile, setMainUpperPercentile] = useState(99.75);
+  const [showStackedSettings, setShowStackedSettings] = useState(false);
+  const [stackedLowerPercentile, setStackedLowerPercentile] = useState(0.25);
+  const [stackedUpperPercentile, setStackedUpperPercentile] = useState(99.75);
+  const [stackedSamplesPerChannel, setStackedSamplesPerChannel] = useState(7000);
+  const [xScaleMode, setXScaleMode] = useState("sample");
+  const [sampleRate, setSampleRate] = useState(1024);
   const [status, setStatus] = useState("Loading subjects...");
   const [isLoading, setIsLoading] = useState(false);
   const [copyStatus, setCopyStatus] = useState("");
@@ -298,18 +520,56 @@ export default function EegViewer({ onBack }) {
     [channels, channel]
   );
 
-  const selectionCode = `${subject},${file},${channel}`;
+  const selectionCode = `S_${subject},${file},CH_${channel}`;
   const normalizedMaxPoints = Math.max(100, Math.floor(Number(maxPoints) || DEFAULT_MAX_POINTS));
+  const normalizedMainLowerPercentile = Math.max(0, Math.min(99.99, Number(mainLowerPercentile) || 0));
+  const normalizedMainUpperPercentile = Math.max(
+    normalizedMainLowerPercentile + 0.01,
+    Math.min(100, Number(mainUpperPercentile) || 100)
+  );
+  const normalizedSampleRate = Math.max(1, Number(sampleRate) || 1024);
+  const normalizedStackedSamples = Math.max(25, Math.floor(Number(stackedSamplesPerChannel) || DEFAULT_MAX_POINTS));
+  const normalizedLowerPercentile = Math.max(0, Math.min(99.99, Number(stackedLowerPercentile) || 0));
+  const normalizedUpperPercentile = Math.max(
+    normalizedLowerPercentile + 0.01,
+    Math.min(100, Number(stackedUpperPercentile) || 100)
+  );
+  const updateEegUrl = useCallback((nextSubject, nextFile, nextChannel, nextFiles = files) => {
+    if (!nextSubject || !nextFile || nextChannel === "") return;
+    const fileIndex = nextFiles.findIndex((item) => item.id === nextFile);
+    if (fileIndex < 0) return;
+    const nextUrl = `/eeg?S=S_${nextSubject}&FILE=${fileIndex}&CH=CH_${nextChannel}`;
+    if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
+      window.history.replaceState(null, "", nextUrl);
+    }
+  }, [files]);
+  const applyStackedSettings = ({ lowerPercentile, upperPercentile, samplesPerChannel }) => {
+    setStackedLowerPercentile(lowerPercentile);
+    setStackedUpperPercentile(upperPercentile);
+    setStackedSamplesPerChannel(samplesPerChannel);
+    setShowStackedSettings(false);
+  };
+  const applyMainPlotSettings = ({ lowerPercentile, upperPercentile, maxPoints }) => {
+    setMainLowerPercentile(lowerPercentile);
+    setMainUpperPercentile(upperPercentile);
+    setMaxPoints(maxPoints);
+    setShowMainPlotSettings(false);
+  };
+  const mainYRange = useMemo(() => {
+    if (!plotData?.y?.length) return undefined;
+    return percentileRange(plotData.y, normalizedMainLowerPercentile, normalizedMainUpperPercentile);
+  }, [normalizedMainLowerPercentile, normalizedMainUpperPercentile, plotData]);
 
   useEffect(() => {
     api("/api/subjects")
       .then(({ subjects: rows }) => {
         setSubjects(rows);
-        setSubject(rows[0] || "");
+        const requestedSubject = initialSelection.subject;
+        setSubject(requestedSubject && rows.includes(requestedSubject) ? requestedSubject : rows[0] || "");
         setStatus(rows.length ? `${rows.length} subjects available` : "No subjects found");
       })
       .catch((error) => setStatus(error.message));
-  }, []);
+  }, [initialSelection.subject]);
 
   useEffect(() => {
     if (!subject) return;
@@ -323,11 +583,12 @@ export default function EegViewer({ onBack }) {
     api("/api/files", { subject })
       .then(({ files: rows }) => {
         setFiles(rows);
-        setFile(rows[0]?.id || "");
+        const requestedIndex = Number.isInteger(initialSelection.fileIndex) ? initialSelection.fileIndex : null;
+        setFile(requestedIndex !== null && rows[requestedIndex] ? rows[requestedIndex].id : rows[0]?.id || "");
         setStatus(rows.length ? `${rows.length} H5 files available` : "No H5 files found");
       })
       .catch((error) => setStatus(error.message));
-  }, [subject]);
+  }, [initialSelection.fileIndex, subject]);
 
   useEffect(() => {
     if (!subject || !file) return;
@@ -339,11 +600,13 @@ export default function EegViewer({ onBack }) {
     api("/api/channels", { subject, file })
       .then(({ channels: rows }) => {
         setChannels(rows);
-        setChannel(rows[0] ? String(rows[0].id) : "");
+        const requestedChannel = initialSelection.channel;
+        const channelExists = rows.some((item) => String(item.id) === String(requestedChannel));
+        setChannel(channelExists ? String(requestedChannel) : rows[0] ? String(rows[0].id) : "");
         setStatus(rows.length ? `${rows.length} iEEG channels available` : "No iEEG channels found");
       })
       .catch((error) => setStatus(error.message));
-  }, [subject, file]);
+  }, [file, initialSelection.channel, subject]);
 
   const plot = useCallback(() => {
     if (!subject || !file || channel === "") return;
@@ -362,20 +625,21 @@ export default function EegViewer({ onBack }) {
     if (!subject || !file || !showAllChannels) return;
     setIsLoading(true);
     setStatus("Reading all iEEG channels...");
-    api("/api/all-data", { subject, file, max_points: normalizedMaxPoints })
+    api("/api/all-data", { subject, file, max_points: normalizedStackedSamples })
       .then((data) => {
         setAllChannelData(data);
         setStatus(`Loaded ${data.traces.length.toLocaleString()} iEEG channel rows`);
       })
       .catch((error) => setStatus(error.message))
       .finally(() => setIsLoading(false));
-  }, [subject, file, normalizedMaxPoints, showAllChannels]);
+  }, [subject, file, normalizedStackedSamples, showAllChannels]);
 
   useEffect(() => {
     if (subject && file && channel !== "") {
+      updateEegUrl(subject, file, channel);
       plot();
     }
-  }, [subject, file, channel, plot]);
+  }, [channel, file, plot, subject, updateEegUrl]);
 
   useEffect(() => {
     if (showAllChannels) {
@@ -386,7 +650,7 @@ export default function EegViewer({ onBack }) {
   const copySelectionCode = useCallback((label) => {
     if (!subject || !file || channel === "") return;
     navigator.clipboard
-      .writeText(`${subject}\t${file}\t${channel}\t${label}\n`)
+      .writeText(`S_${subject}\t${file}\tCH_${channel}\t${label}\n`)
       .then(() => {
         setCopyStatus(`Copied ${label}`);
         window.setTimeout(() => setCopyStatus(""), 1400);
@@ -446,16 +710,25 @@ export default function EegViewer({ onBack }) {
         {showAdvanced && (
           <section className="advanced">
             <label className="field">
-              <span>Max plotted points</span>
-              <input
-                type="number"
-                min="100"
-                step="100"
-                value={maxPoints}
-                onChange={(event) => setMaxPoints(event.target.value)}
-                onBlur={() => setMaxPoints(normalizedMaxPoints)}
-              />
+              <span>X-axis scale</span>
+              <select value={xScaleMode} onChange={(event) => setXScaleMode(event.target.value)}>
+                <option value="sample">Sample ID</option>
+                <option value="seconds">Seconds</option>
+              </select>
             </label>
+            {xScaleMode === "seconds" && (
+              <label className="field">
+                <span>Samples / s</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={sampleRate}
+                  onChange={(event) => setSampleRate(event.target.value)}
+                  onBlur={() => setSampleRate(normalizedSampleRate)}
+                />
+              </label>
+            )}
             <label className="toggle-row">
               <input
                 type="checkbox"
@@ -477,7 +750,6 @@ export default function EegViewer({ onBack }) {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Scaled H5 trace</p>
             <h2>
               {plotData
                 ? `Subject ${plotData.subject}, channel ${plotData.channel}`
@@ -508,14 +780,8 @@ export default function EegViewer({ onBack }) {
             <span>Max</span>
             <strong>{formatMetric(plotData?.max)}</strong>
           </article>
-        </div>
-
-        <div className="copy-toolbar">
-          <div>
-            <span>Google Sheets row</span>
-            <code>{selectionCode}</code>
-          </div>
-          <div className="copy-actions">
+          <article className="copy-card">
+            <span>Copy</span>
             <div className="copy-button-row">
               <button className="copy-yes" type="button" onClick={() => copySelectionCode("YES")}>
                 Copy YES
@@ -525,7 +791,7 @@ export default function EegViewer({ onBack }) {
               </button>
             </div>
             <span className={copyStatus ? "copy-status visible" : "copy-status"}>{copyStatus || "Copied"}</span>
-          </div>
+          </article>
         </div>
 
         <section className="chart-panel">
@@ -534,13 +800,26 @@ export default function EegViewer({ onBack }) {
               <h3>{selectedChannel?.correct_ch || selectedChannel?.edf_ch || "Trace"}</h3>
               <p>
                 {plotData
-                  ? `${plotData.file}.h5 samples ${plotData.start}-${plotData.stop}, snippets assume ${plotData.snippet_sample_rate} Hz`
+                  ? `${plotData.file}.h5 samples ${plotData.start}-${plotData.stop}, y-scale ${normalizedMainLowerPercentile}-${normalizedMainUpperPercentile} percentile`
                   : "Waiting for data"}
               </p>
             </div>
+            <button
+              className="icon-button"
+              type="button"
+              aria-label="Single-channel plot settings"
+              onClick={() => setShowMainPlotSettings(true)}
+            >
+              ⚙
+            </button>
           </div>
-          <SnippetGrid snippets={plotData?.snippets} yRange={plotData ? [plotData.min, plotData.max] : undefined} />
-          <EegChart data={plotData} />
+          <SnippetGrid
+            snippets={plotData?.snippets}
+            yRange={mainYRange}
+            xScaleMode={xScaleMode}
+            sampleRate={normalizedSampleRate}
+          />
+          <EegChart data={plotData} xScaleMode={xScaleMode} sampleRate={normalizedSampleRate} yRange={mainYRange} />
         </section>
 
         {showAllChannels && (
@@ -550,13 +829,46 @@ export default function EegViewer({ onBack }) {
                 <h3>All iEEG channels</h3>
                 <p>
                   {allChannelData
-                    ? `${allChannelData.traces.length} rows, step ${allChannelData.downsample_step}`
+                    ? `${allChannelData.traces.length} rows, step ${allChannelData.downsample_step}, scale ${normalizedLowerPercentile}-${normalizedUpperPercentile} percentile`
                     : "Waiting for all-channel data"}
                 </p>
               </div>
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="Stacked plot settings"
+                onClick={() => setShowStackedSettings(true)}
+              >
+                ⚙
+              </button>
             </div>
-            <AllChannelsChart data={allChannelData} />
+            <AllChannelsChart
+              data={allChannelData}
+              lowerPercentile={normalizedLowerPercentile}
+              upperPercentile={normalizedUpperPercentile}
+              xScaleMode={xScaleMode}
+              sampleRate={normalizedSampleRate}
+            />
           </section>
+        )}
+
+        {showStackedSettings && (
+          <StackedSettingsModal
+            lowerPercentile={stackedLowerPercentile}
+            upperPercentile={stackedUpperPercentile}
+            samplesPerChannel={stackedSamplesPerChannel}
+            onClose={() => setShowStackedSettings(false)}
+            onApply={applyStackedSettings}
+          />
+        )}
+        {showMainPlotSettings && (
+          <MainPlotSettingsModal
+            lowerPercentile={mainLowerPercentile}
+            upperPercentile={mainUpperPercentile}
+            maxPoints={maxPoints}
+            onClose={() => setShowMainPlotSettings(false)}
+            onApply={applyMainPlotSettings}
+          />
         )}
       </section>
     </main>

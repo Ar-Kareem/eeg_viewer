@@ -337,7 +337,7 @@ select:disabled {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
   gap: 12px;
 }
 
@@ -362,41 +362,9 @@ select:disabled {
   font-size: 16px;
 }
 
-.copy-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid #dbe3eb;
-  border-radius: 8px;
-  background: #ffffff;
-}
-
-.copy-toolbar div {
+.copy-card {
   display: grid;
-  gap: 5px;
-  min-width: 0;
-}
-
-.copy-toolbar span {
-  color: #647386;
-  font-size: 12px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.copy-toolbar code {
-  overflow-wrap: anywhere;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 13px;
-  color: #26313d;
-}
-
-.copy-actions {
-  display: grid;
-  gap: 8px;
-  flex: 0 0 auto;
+  gap: 6px;
 }
 
 .copy-button-row {
@@ -450,12 +418,88 @@ select:disabled {
 .chart-title {
   display: flex;
   justify-content: space-between;
+  align-items: start;
   gap: 16px;
   margin-bottom: 12px;
 }
 
 .chart-title h3 {
   font-size: 18px;
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #bac7d3;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #26313d;
+  cursor: pointer;
+  font-size: 17px;
+}
+
+.icon-button:hover {
+  border-color: #1f6fb2;
+  color: #1f6fb2;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(23, 32, 42, 0.36);
+}
+
+.settings-modal {
+  width: min(520px, 100%);
+  padding: 18px;
+  border: 1px solid #d6dee7;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(20, 31, 43, 0.25);
+}
+
+.settings-modal header,
+.settings-modal footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.settings-modal header {
+  margin-bottom: 16px;
+}
+
+.settings-modal header button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #bac7d3;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #26313d;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.settings-modal h2 {
+  font-size: 20px;
+}
+
+.modal-fields {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.settings-modal footer {
+  justify-content: flex-end;
 }
 
 .snippet-grid {
@@ -578,14 +622,6 @@ select:disabled {
 
   .topbar {
     display: grid;
-  }
-
-  .copy-toolbar {
-    display: grid;
-  }
-
-  .copy-actions {
-    width: 100%;
   }
 
   .topbar h2 {
