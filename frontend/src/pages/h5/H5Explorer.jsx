@@ -240,7 +240,7 @@ function ChannelQualityPlot({ data, qualityRows }) {
   }, [data, qualityById]);
 
   if (!data) {
-    return <div className="empty-inline">Loading whole-recording iEEG envelope for this file.</div>;
+    return <div className="empty-inline">Loading selected iEEG window for this file.</div>;
   }
 
   const labels = data.traces
@@ -326,10 +326,13 @@ export default function H5Explorer({ onBack }) {
   const [qualitySort, setQualitySort] = useState({ field: "quality_score", direction: "desc" });
   const [qualityMaxPoints, setQualityMaxPoints] = useState(5000);
   const [quality, setQuality] = useState(null);
-  const [qualityView, setQualityView] = useState("plot");
+  const [qualityView, setQualityView] = useState("table");
   const [qualityPlotData, setQualityPlotData] = useState(null);
   const [qualityPlotKey, setQualityPlotKey] = useState("");
   const [qualityPlotLoading, setQualityPlotLoading] = useState(false);
+  const [qualityPlotStartMinute, setQualityPlotStartMinute] = useState(0);
+  const [qualityPlotEndMinute, setQualityPlotEndMinute] = useState(30);
+  const [appliedQualityPlotWindow, setAppliedQualityPlotWindow] = useState({ startMinute: 0, endMinute: 30 });
   const [qualityLoading, setQualityLoading] = useState(false);
   const [qualityStatus, setQualityStatus] = useState("Run QC for the selected H5 file.");
   const [status, setStatus] = useState("Loading subjects...");
@@ -363,6 +366,9 @@ export default function H5Explorer({ onBack }) {
     setQuality(null);
     setQualityPlotData(null);
     setQualityPlotKey("");
+    setQualityPlotStartMinute(0);
+    setQualityPlotEndMinute(30);
+    setAppliedQualityPlotWindow({ startMinute: 0, endMinute: 30 });
     setQualityStatus("Run QC for the selected H5 file.");
     setStatus("Loading H5 files...");
 
@@ -448,6 +454,9 @@ export default function H5Explorer({ onBack }) {
     setQuality(null);
     setQualityPlotData(null);
     setQualityPlotKey("");
+    setQualityPlotStartMinute(0);
+    setQualityPlotEndMinute(30);
+    setAppliedQualityPlotWindow({ startMinute: 0, endMinute: 30 });
     setQualityStatus(info ? "Run QC for the selected H5 file." : "Select a scanned H5 file.");
   }, [info]);
 
@@ -471,12 +480,17 @@ export default function H5Explorer({ onBack }) {
 
   useEffect(() => {
     if (qualityView !== "plot" || !quality || !subject || !selectedRow?.id) return;
-    const maxBins = 800;
-    const nextKey = `${subject}:${selectedRow.id}:envelope:${maxBins}`;
+    const maxPoints = 7000;
+    const sampleRate = 1024;
+    const startMinute = Math.max(0, Number(appliedQualityPlotWindow.startMinute) || 0);
+    const endMinute = Math.max(startMinute + 1 / 60, Number(appliedQualityPlotWindow.endMinute) || startMinute + 30);
+    const start = Math.floor(startMinute * 60 * sampleRate);
+    const points = Math.max(1, Math.floor((endMinute - startMinute) * 60 * sampleRate));
+    const nextKey = `${subject}:${selectedRow.id}:all-data:${maxPoints}:${start}:${points}`;
     if (qualityPlotKey === nextKey && qualityPlotData) return;
     let cancelled = false;
     setQualityPlotLoading(true);
-    api("/api/channel-quality-envelope", { subject, file: selectedRow.id, max_bins: maxBins })
+    api("/api/all-data", { subject, file: selectedRow.id, max_points: maxPoints, start, points })
       .then((payload) => {
         if (cancelled) return;
         setQualityPlotData(payload);
@@ -495,7 +509,17 @@ export default function H5Explorer({ onBack }) {
     return () => {
       cancelled = true;
     };
-  }, [quality, qualityPlotData, qualityPlotKey, qualityView, selectedRow, subject]);
+  }, [appliedQualityPlotWindow, quality, qualityPlotData, qualityPlotKey, qualityView, selectedRow, subject]);
+
+  const applyQualityPlotWindow = () => {
+    const startMinute = Math.max(0, Number(qualityPlotStartMinute) || 0);
+    const endMinute = Math.max(startMinute + 1 / 60, Number(qualityPlotEndMinute) || startMinute + 30);
+    setQualityPlotStartMinute(startMinute);
+    setQualityPlotEndMinute(endMinute);
+    setQualityPlotData(null);
+    setQualityPlotKey("");
+    setAppliedQualityPlotWindow({ startMinute, endMinute });
+  };
 
   const handleQualitySort = (field) => {
     setQualitySort((current) => ({
@@ -550,6 +574,14 @@ export default function H5Explorer({ onBack }) {
       good: channels.filter((channel) => channel.quality_label === "good").length,
     };
   }, [quality]);
+
+  const visibleQualityDownsampleStep = useMemo(() => {
+    if (qualityView !== "plot") return quality?.downsample_step;
+    const startMinute = Math.max(0, Number(qualityPlotStartMinute) || 0);
+    const endMinute = Math.max(startMinute + 1 / 60, Number(qualityPlotEndMinute) || startMinute + 30);
+    const windowSamples = Math.max(1, Math.floor((endMinute - startMinute) * 60 * 1024));
+    return Math.max(1, Math.ceil(windowSamples / 7000));
+  }, [quality?.downsample_step, qualityPlotEndMinute, qualityPlotStartMinute, qualityView]);
 
   return (
     <main className="shell">
@@ -770,7 +802,7 @@ export default function H5Explorer({ onBack }) {
                     </div>
                     <div>
                       <span>Downsample step</span>
-                      <strong>{formatNumber(quality.downsample_step, 0)}</strong>
+                      <strong>{formatNumber(visibleQualityDownsampleStep, 0)}</strong>
                     </div>
                     <div>
                       <span>Total samples</span>
@@ -858,13 +890,43 @@ export default function H5Explorer({ onBack }) {
                       </table>
                     </div>
                   ) : (
-                    <div className="h5-qc-plot-wrap">
-                      {qualityPlotLoading ? (
-                        <div className="empty-inline">Loading whole-recording iEEG envelope...</div>
-                      ) : (
-                        <ChannelQualityPlot data={qualityPlotData} qualityRows={qualityRows} />
-                      )}
-                    </div>
+                    <>
+                      <div className="h5-qc-window-row">
+                        <label className="field">
+                          <span>Start minute</span>
+                          <input
+                            min="0"
+                            step="1"
+                            type="number"
+                            value={qualityPlotStartMinute}
+                            onChange={(event) => setQualityPlotStartMinute(event.target.value)}
+                          />
+                        </label>
+                        <label className="field">
+                          <span>End minute</span>
+                          <input
+                            min="0"
+                            step="1"
+                            type="number"
+                            value={qualityPlotEndMinute}
+                            onChange={(event) => setQualityPlotEndMinute(event.target.value)}
+                          />
+                        </label>
+                        <button className="secondary" type="button" onClick={applyQualityPlotWindow}>
+                          Apply plot window
+                        </button>
+                        <span className="inline-note">
+                          Showing {appliedQualityPlotWindow.startMinute}-{appliedQualityPlotWindow.endMinute} min
+                        </span>
+                      </div>
+                      <div className="h5-qc-plot-wrap">
+                        {qualityPlotLoading ? (
+                          <div className="empty-inline">Loading selected iEEG window...</div>
+                        ) : (
+                          <ChannelQualityPlot data={qualityPlotData} qualityRows={qualityRows} />
+                        )}
+                      </div>
+                    </>
                   )}
                 </>
               ) : (

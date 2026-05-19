@@ -877,6 +877,20 @@ select:disabled {
   margin-bottom: 2px;
 }
 
+.h5-qc-window-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 180px)) auto minmax(160px, 1fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.inline-note {
+  align-self: center;
+  color: #647386;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .view-toggle {
   display: inline-flex;
   width: fit-content;
@@ -1630,6 +1644,7 @@ select:disabled {
   .h5-grid,
   .h5-file-grid,
   .h5-qc-action-row,
+  .h5-qc-window-row,
   .event-grid,
   .spectral-grid,
   .montage-grid,

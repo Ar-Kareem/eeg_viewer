@@ -174,11 +174,19 @@ def read_channel_snippets(
     return {"snippets": snippets, "snippet_sample_rate": sample_rate}
 
 
-def read_all_channel_data(subject: str, raw_stem: str, max_points: int) -> dict[str, object]:
+def read_all_channel_data(
+    subject: str,
+    raw_stem: str,
+    max_points: int,
+    start: int = 0,
+    points: int | None = None,
+) -> dict[str, object]:
     channels = read_channels(subject, raw_stem)
     _, h5_path = data_paths(subject, raw_stem)
     traces = []
     total_samples = 0
+    window_start = 0
+    window_stop = 0
     downsample_step = 1
 
     with h5py.File(h5_path, "r") as h5_file:
@@ -191,15 +199,18 @@ def read_all_channel_data(subject: str, raw_stem: str, max_points: int) -> dict[
 
             dataset = group[dataset_name]
             total_samples = int(dataset.shape[-1])
-            downsample_step = max(1, math.ceil(total_samples / max(1, max_points)))
-            raw = dataset[0, ::downsample_step].astype(np.float64)
+            window_start = max(0, min(start, total_samples))
+            window_stop = total_samples if points is None else min(total_samples, window_start + max(1, points))
+            window_samples = max(0, window_stop - window_start)
+            downsample_step = max(1, math.ceil(window_samples / max(1, max_points)))
+            raw = dataset[0, window_start:window_stop:downsample_step].astype(np.float64)
             cal = float(group["cal"][channel_index])
             offset = float(group["offsets"][channel_index])
             gain = float(group["gains"][channel_index])
             values = (raw * cal + offset) * gain
 
-            window_samples = int(values.size)
-            sample_indexes = np.arange(0, total_samples, downsample_step, dtype=np.int64)
+            sampled_samples = int(values.size)
+            sample_indexes = np.arange(window_start, window_stop, downsample_step, dtype=np.int64)
 
             traces.append(
                 {
@@ -207,14 +218,16 @@ def read_all_channel_data(subject: str, raw_stem: str, max_points: int) -> dict[
                     "label": channel.get("correct_ch") or channel.get("edf_ch") or f"channel_{channel_index}",
                     "x": sample_indexes.tolist(),
                     "y": values.tolist(),
-                    "min": float(np.min(values)) if window_samples else None,
-                    "max": float(np.max(values)) if window_samples else None,
+                    "min": float(np.min(values)) if sampled_samples else None,
+                    "max": float(np.max(values)) if sampled_samples else None,
                 }
             )
 
     return {
         "subject": subject,
         "file": file_stem(raw_stem),
+        "start": window_start,
+        "stop": window_stop,
         "total_samples": total_samples,
         "downsample_step": downsample_step,
         "max_points": max_points,
@@ -263,5 +276,11 @@ def api_snippets(
 
 
 @router.get("/all-data")
-def api_all_data(subject: str, file: str, max_points: int) -> dict[str, object]:
-    return read_all_channel_data(subject, file, max_points)
+def api_all_data(
+    subject: str,
+    file: str,
+    max_points: int,
+    start: int = 0,
+    points: Optional[int] = None,
+) -> dict[str, object]:
+    return read_all_channel_data(subject, file, max_points, start, points)

@@ -61,19 +61,19 @@ process.on("uncaughtException", (error) => {
   shutdown(1);
 });
 
-console.log("Backend:  http://127.0.0.1:8739");
-console.log("Frontend: http://127.0.0.1:5174");
+console.log("Backend:  http://0.0.0.0:8739");
+console.log("Frontend: http://0.0.0.0:5174");
 
 start("backend", "env3.9/bin/python", [
   "-m",
   "uvicorn",
   "backend.app:app",
   "--host",
-  "127.0.0.1",
+  "0.0.0.0",
   "--port",
   "8739",
   "--reload",
   "--reload-dir",
   "backend",
 ]);
-start("frontend", "npm", ["run", "dev", "--prefix", "frontend", "--", "--port", "5174", "--strictPort"]);
+start("frontend", "npm", ["run", "dev", "--prefix", "frontend", "--", "--host", "0.0.0.0", "--port", "5174", "--strictPort"]);
