@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 async function api(path, params = {}) {
   const url = new URL(path, window.location.origin);
@@ -31,6 +31,15 @@ function formatBytes(value) {
     unitIndex += 1;
   }
   return `${size.toFixed(unitIndex === 0 ? 0 : 2)} ${units[unitIndex]}`;
+}
+
+function formatDuration(value) {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds <= 0) return "-";
+  const totalMinutes = Math.floor(seconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
 function shapeLabel(shape) {
@@ -72,16 +81,31 @@ function AttributeTable({ attrs }) {
   );
 }
 
+function Spinner() {
+  return <span className="tiny-spinner" aria-label="Scanning" />;
+}
+
+function fileCardClass(row) {
+  if (row.status === "pending" || row.status === "scanning") return row.status;
+  if (row.status === "error") return "error";
+  const datasets = row.info?.summary?.datasets || 0;
+  const attrs = row.info?.summary?.root_attrs || 0;
+  if (datasets >= 200) return "many-datasets";
+  if (datasets > 0) return "has-datasets";
+  if (attrs > 0) return "has-attrs";
+  return "no-datasets";
+}
+
 export default function H5Explorer({ onBack }) {
   const [subjects, setSubjects] = useState([]);
-  const [files, setFiles] = useState([]);
   const [subject, setSubject] = useState("");
-  const [selectedFile, setSelectedFile] = useState("");
-  const [info, setInfo] = useState(null);
+  const [scanRows, setScanRows] = useState([]);
+  const [selectedId, setSelectedId] = useState("");
   const [selectedPath, setSelectedPath] = useState("");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("Loading subjects...");
   const [loading, setLoading] = useState(false);
+  const scanVersion = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +114,7 @@ export default function H5Explorer({ onBack }) {
         if (cancelled) return;
         setSubjects(payload.subjects || []);
         setSubject(payload.subjects?.[0] || "");
-        setStatus(payload.subjects?.length ? "Pick an H5 file to inspect." : "No subjects found.");
+        setStatus(payload.subjects?.length ? "Pick a subject to scan." : "No subjects found.");
       })
       .catch((error) => {
         if (!cancelled) setStatus(error.message);
@@ -100,50 +124,95 @@ export default function H5Explorer({ onBack }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (!subject) {
-      setFiles([]);
-      setSelectedFile("");
-      return;
-    }
-
-    let cancelled = false;
-    setInfo(null);
+  const scanSubject = async (nextSubject) => {
+    if (!nextSubject) return;
+    const version = scanVersion.current + 1;
+    scanVersion.current = version;
+    setLoading(true);
+    setSelectedId("");
     setSelectedPath("");
     setStatus("Loading H5 files...");
-    api("/api/files", { subject })
-      .then((payload) => {
-        if (cancelled) return;
-        const nextFiles = payload.files || [];
-        setFiles(nextFiles);
-        setSelectedFile(nextFiles[0]?.id || "");
-        setStatus(nextFiles.length ? "Pick an H5 file to inspect." : "No H5 files found for this subject.");
-      })
-      .catch((error) => {
-        if (!cancelled) setStatus(error.message);
-      });
-    return () => {
-      cancelled = true;
-    };
+
+    try {
+      const payload = await api("/api/files", { subject: nextSubject });
+      if (scanVersion.current !== version) return;
+      const files = payload.files || [];
+      setScanRows(
+        files.map((file, index) => ({
+          id: file.id,
+          h5: file.h5,
+          index,
+          status: "pending",
+          info: null,
+          error: "",
+        }))
+      );
+      setStatus(files.length ? `Scanning 0/${files.length} H5 files...` : "No H5 files found for this subject.");
+      if (!files.length) {
+        setLoading(false);
+        return;
+      }
+
+      let cursor = 0;
+      let completed = 0;
+      const workerCount = Math.min(3, files.length);
+      const runWorker = async () => {
+        while (scanVersion.current === version) {
+          const fileIndex = cursor;
+          cursor += 1;
+          if (fileIndex >= files.length) return;
+          const file = files[fileIndex];
+          setScanRows((rows) =>
+            rows.map((row) => (row.id === file.id ? { ...row, status: "scanning" } : row))
+          );
+
+          try {
+            const info = await api("/api/h5-info", { subject: nextSubject, file: file.id });
+            if (scanVersion.current !== version) return;
+            setScanRows((rows) =>
+              rows.map((row) => (row.id === file.id ? { ...row, status: "done", info } : row))
+            );
+          } catch (error) {
+            if (scanVersion.current !== version) return;
+            setScanRows((rows) =>
+              rows.map((row) => (row.id === file.id ? { ...row, status: "error", error: error.message } : row))
+            );
+          } finally {
+            completed += 1;
+            if (scanVersion.current === version) {
+              setStatus(`Scanning ${completed}/${files.length} H5 files...`);
+            }
+          }
+        }
+      };
+
+      await Promise.all(Array.from({ length: workerCount }, runWorker));
+      if (scanVersion.current === version) {
+        setLoading(false);
+        setStatus(`Finished scanning ${files.length} H5 files.`);
+      }
+    } catch (error) {
+      if (scanVersion.current !== version) return;
+      setLoading(false);
+      setScanRows([]);
+      setStatus(error.message);
+    }
+  };
+
+  useEffect(() => {
+    scanSubject(subject);
   }, [subject]);
 
-  const loadInfo = () => {
-    if (!subject || !selectedFile) return;
-    setLoading(true);
-    setStatus("Reading H5 structure...");
-    api("/api/h5-info", { subject, file: selectedFile })
-      .then((payload) => {
-        setInfo(payload);
-        setSelectedPath(payload.nodes?.[0]?.path || "");
-        setStatus(`Loaded ${payload.h5}`);
-      })
-      .catch((error) => {
-        setInfo(null);
-        setSelectedPath("");
-        setStatus(error.message);
-      })
-      .finally(() => setLoading(false));
-  };
+  const selectedRow = useMemo(
+    () => scanRows.find((row) => row.id === selectedId) || scanRows.find((row) => row.info) || null,
+    [scanRows, selectedId]
+  );
+  const info = selectedRow?.info || null;
+
+  useEffect(() => {
+    setSelectedPath(info?.nodes?.[0]?.path || "");
+    setQuery("");
+  }, [info]);
 
   const filteredNodes = useMemo(() => {
     const nodes = info?.nodes || [];
@@ -159,6 +228,17 @@ export default function H5Explorer({ onBack }) {
     return (info?.nodes || []).find((node) => node.path === selectedPath) || null;
   }, [info, selectedPath]);
 
+  const counts = useMemo(() => {
+    const scannedRows = scanRows.filter((row) => row.status === "done" || row.status === "error");
+    return {
+      total: scanRows.length,
+      scanned: scannedRows.length,
+      datasets: scanRows.reduce((sum, row) => sum + (row.info?.summary?.datasets || 0), 0),
+      groups: scanRows.reduce((sum, row) => sum + (row.info?.summary?.groups || 0), 0),
+      errors: scanRows.filter((row) => row.status === "error").length,
+    };
+  }, [scanRows]);
+
   return (
     <main className="shell">
       <aside className="sidebar">
@@ -166,7 +246,7 @@ export default function H5Explorer({ onBack }) {
           <div className="mark">H5</div>
           <div>
             <h1>H5 Explorer</h1>
-            <p>Technical file inspection</p>
+            <p>Subject-wide file inspection</p>
           </div>
         </div>
 
@@ -186,29 +266,14 @@ export default function H5Explorer({ onBack }) {
             </select>
           </label>
 
-          <label className="field">
-            <span>H5 file</span>
-            <select
-              value={selectedFile}
-              disabled={!files.length}
-              onChange={(event) => setSelectedFile(event.target.value)}
-            >
-              {files.map((file, index) => (
-                <option key={file.id} value={file.id}>
-                  FILE {index} - {file.h5}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <button className="primary" type="button" disabled={loading || !selectedFile} onClick={loadInfo}>
-            {loading ? "Loading..." : "Load H5"}
+          <button className="primary" type="button" disabled={loading || !subject} onClick={() => scanSubject(subject)}>
+            {loading ? "Scanning..." : "Rescan Subject"}
           </button>
         </div>
 
         <div className="advanced">
           <p className="sidebar-note">
-            Reads structure, attributes, dataset metadata, and small previews. Large arrays are not fully loaded.
+            Each tiny card updates as its H5 metadata scan finishes. Large arrays are not fully loaded.
           </p>
         </div>
       </aside>
@@ -217,44 +282,106 @@ export default function H5Explorer({ onBack }) {
         <div className="topbar">
           <div>
             <p className="eyebrow">Research file explorer</p>
-            <h2>{info?.h5 || "Select an H5 file"}</h2>
+            <h2>{subject ? `Subject S_${subject}` : "H5 Explorer"}</h2>
           </div>
           <div className={`status ${loading ? "busy" : ""}`}>{status}</div>
         </div>
 
-        <section className="metric-grid h5-metrics" aria-label="H5 summary">
+        <section className="metric-grid h5-metrics" aria-label="H5 scan summary">
           <article>
-            <span>File size</span>
-            <strong>{formatBytes(info?.file_size_bytes)}</strong>
+            <span>Files</span>
+            <strong>{formatInteger(counts.total)}</strong>
           </article>
           <article>
-            <span>Groups</span>
-            <strong>{formatInteger(info?.summary?.groups)}</strong>
+            <span>Scanned</span>
+            <strong>{formatInteger(counts.scanned)}</strong>
           </article>
           <article>
             <span>Datasets</span>
-            <strong>{formatInteger(info?.summary?.datasets)}</strong>
+            <strong>{formatInteger(counts.datasets)}</strong>
           </article>
           <article>
-            <span>Dataset bytes</span>
-            <strong>{formatBytes(info?.summary?.estimated_dataset_bytes)}</strong>
+            <span>Groups</span>
+            <strong>{formatInteger(counts.groups)}</strong>
           </article>
           <article>
-            <span>Elements</span>
-            <strong>{formatInteger(info?.summary?.dataset_elements)}</strong>
+            <span>Errors</span>
+            <strong>{formatInteger(counts.errors)}</strong>
           </article>
-          <article>
-            <span>Root attrs</span>
-            <strong>{formatInteger(info?.summary?.root_attrs)}</strong>
-          </article>
+        </section>
+
+        <section className="chart-panel h5-scan-panel">
+          <div className="chart-title">
+            <div>
+              <h3>Files</h3>
+              <p>Tiny cards update as metadata scans finish.</p>
+            </div>
+          </div>
+          <div className="h5-file-card-grid">
+            {scanRows.map((row) => (
+              <button
+                className={`h5-file-card ${fileCardClass(row)} ${selectedRow?.id === row.id ? "selected" : ""}`}
+                disabled={!row.info && row.status !== "error"}
+                key={row.id}
+                onClick={() => setSelectedId(row.id)}
+                title={row.h5}
+                type="button"
+              >
+                <span>FILE {row.index}</span>
+                <strong>
+                  {row.status === "pending" || row.status === "scanning" ? (
+                    <Spinner />
+                  ) : (
+                    formatDuration(row.info?.recording_seconds)
+                  )}
+                </strong>
+                <small>
+                  {row.status === "error"
+                    ? "error"
+                    : row.status === "done"
+                      ? (
+                          <span>{formatInteger(row.info?.channel_count || 0)} Ch</span>
+                        )
+                      : row.status}
+                </small>
+              </button>
+            ))}
+          </div>
         </section>
 
         {info ? (
           <>
+            <section className="metric-grid h5-metrics" aria-label="Selected H5 summary">
+              <article>
+                <span>File size</span>
+                <strong>{formatBytes(info.file_size_bytes)}</strong>
+              </article>
+              <article>
+                <span>Groups</span>
+                <strong>{formatInteger(info.summary.groups)}</strong>
+              </article>
+              <article>
+                <span>Datasets</span>
+                <strong>{formatInteger(info.summary.datasets)}</strong>
+              </article>
+              <article>
+                <span>Dataset bytes</span>
+                <strong>{formatBytes(info.summary.estimated_dataset_bytes)}</strong>
+              </article>
+              <article>
+                <span>Elements</span>
+                <strong>{formatInteger(info.summary.dataset_elements)}</strong>
+              </article>
+              <article>
+                <span>Root attrs</span>
+                <strong>{formatInteger(info.summary.root_attrs)}</strong>
+              </article>
+            </section>
+
             <section className="chart-panel h5-file-panel">
               <div className="chart-title">
                 <div>
-                  <h3>File metadata</h3>
+                  <h3>{info.h5}</h3>
                   <p>{info.path}</p>
                 </div>
               </div>
@@ -381,7 +508,7 @@ export default function H5Explorer({ onBack }) {
             </section>
           </>
         ) : (
-          <div className="empty-chart">Load an H5 file to inspect groups, datasets, attributes, and previews.</div>
+          <div className="empty-chart">Select a scanned H5 file card to inspect groups, datasets, and attributes.</div>
         )}
       </section>
     </main>

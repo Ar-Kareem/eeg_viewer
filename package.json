@@ -1,6 +1,5 @@
 {
   "scripts": {
-    "start": "node scripts/start-dev.mjs",
-    "build": "npm run build --prefix frontend"
+    "start": "node scripts/start-dev.mjs"
   }
 }

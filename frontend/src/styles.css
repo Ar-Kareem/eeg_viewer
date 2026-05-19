@@ -612,6 +612,86 @@ select:disabled {
   grid-template-columns: repeat(6, minmax(120px, 1fr));
 }
 
+.h5-file-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  gap: 8px;
+}
+
+.h5-file-card {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 4px;
+  min-height: 74px;
+  padding: 8px;
+  border: 1px solid #d6dee7;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #17202a;
+  cursor: pointer;
+  text-align: left;
+}
+
+.h5-file-card:disabled {
+  cursor: default;
+}
+
+.h5-file-card.selected {
+  outline: 2px solid #1f6fb2;
+  outline-offset: 1px;
+}
+
+.h5-file-card span,
+.h5-file-card small {
+  color: #647386;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.h5-file-card small {
+  display: grid;
+  gap: 2px;
+}
+
+.h5-file-card strong {
+  color: #17202a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.h5-file-card.pending,
+.h5-file-card.scanning {
+  background: #f8fafc;
+}
+
+.h5-file-card.no-datasets {
+  border-color: #d8e1e9;
+  background: #f5f7fa;
+}
+
+.h5-file-card.has-attrs {
+  border-color: #d8b45d;
+  background: #fff8e6;
+}
+
+.h5-file-card.has-datasets {
+  border-color: #21865b;
+  background: #e7f4ef;
+}
+
+.h5-file-card.many-datasets {
+  border-color: #4f5fb8;
+  background: #edf2ff;
+}
+
+.h5-file-card.error {
+  border-color: #c43b47;
+  background: #fff1f2;
+}
+
 .h5-file-panel h4,
 .h5-inspector h4 {
   margin: 0 0 8px;

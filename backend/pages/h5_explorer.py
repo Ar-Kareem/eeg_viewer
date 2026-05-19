@@ -6,7 +6,7 @@ from fastapi import APIRouter
 import h5py
 import numpy as np
 
-from ..common import H5_PREVIEW_ITEMS, H5_SMALL_DATASET_LIMIT, data_paths, file_stem
+from ..common import H5_PREVIEW_ITEMS, H5_SMALL_DATASET_LIMIT, SNIPPET_SAMPLE_RATE, data_paths, file_stem
 
 router = APIRouter(prefix="/api", tags=["H5 Explorer"])
 
@@ -91,9 +91,16 @@ def read_h5_info(subject: str, raw_stem: str) -> dict[str, object]:
     dataset_count = 0
     total_elements = 0
     total_bytes = 0
+    recording_samples = 0
+    channel_count = 0
 
     with h5py.File(h5_path, "r") as h5_file:
         root_attrs = read_attrs(h5_file.attrs)
+        if "data" in h5_file and isinstance(h5_file["data"], h5py.Group):
+            channel_names = [name for name in h5_file["data"].keys() if name.startswith("channel_")]
+            channel_count = len(channel_names)
+            if channel_names:
+                recording_samples = int(h5_file["data"][channel_names[0]].shape[-1])
 
         def visitor(name: str, obj: h5py.Group | h5py.Dataset) -> None:
             nonlocal group_count, dataset_count, total_elements, total_bytes
@@ -153,6 +160,9 @@ def read_h5_info(subject: str, raw_stem: str) -> dict[str, object]:
             "driver": h5_file.driver,
             "libver": list(h5_file.libver),
             "userblock_size": int(h5_file.userblock_size),
+            "recording_samples": recording_samples,
+            "recording_seconds": recording_samples / SNIPPET_SAMPLE_RATE if recording_samples else 0,
+            "channel_count": channel_count,
             "root_attrs": root_attrs,
             "summary": {
                 "groups": group_count,
