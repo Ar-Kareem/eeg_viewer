@@ -1,4 +1,0 @@
-- Have advanced settings to show all channels mode where a new view appears that shows all channels in rows each channel being a different color and being very small height
-- make it possible to change the default number of points
-- have a full code be copyable to the clipboard which has {subject, file, channel} in a comma separated string
-- by default (single channel view) show five side by side plots of 1-second sample taken randomly from the channel, the full channel plot should be below it

@@ -835,6 +835,136 @@ select:disabled {
   background: #e9f2fb;
 }
 
+.event-workspace {
+  gap: 14px;
+}
+
+.event-metrics {
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+}
+
+.event-timeline {
+  position: relative;
+  height: 72px;
+  border: 1px solid #dfe7ee;
+  border-radius: 7px;
+  background:
+    linear-gradient(to right, rgba(31, 111, 178, 0.12) 1px, transparent 1px) 0 0 / 10% 100%,
+    #fbfcfd;
+  overflow: hidden;
+}
+
+.event-timeline::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: #cbd6e2;
+}
+
+.event-marker {
+  position: absolute;
+  top: 16px;
+  height: 40px;
+  min-width: 4px;
+  border-radius: 3px;
+  opacity: 0.86;
+}
+
+.event-marker:hover {
+  opacity: 1;
+  outline: 2px solid #17202a;
+}
+
+.event-marker.event,
+.event-pill.event {
+  background: #e9f2fb;
+  color: #1f6fb2;
+}
+
+.event-marker.seizure,
+.event-pill.seizure {
+  background: #fdecef;
+  color: #c43b47;
+}
+
+.event-marker.stimulation,
+.event-pill.stimulation {
+  background: #fff5db;
+  color: #9a6500;
+}
+
+.event-marker.annotation,
+.event-pill.annotation {
+  background: #e7f4ef;
+  color: #21865b;
+}
+
+.event-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.36fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.event-search {
+  margin-bottom: 12px;
+}
+
+.event-table-wrap {
+  max-height: calc(100vh - 410px);
+}
+
+.event-table th,
+.event-table td {
+  white-space: nowrap;
+}
+
+.event-pill {
+  display: inline-grid;
+  place-items: center;
+  min-width: 84px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.event-source-panel {
+  position: sticky;
+  top: 16px;
+}
+
+.source-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.source-card {
+  display: grid;
+  gap: 5px;
+  padding: 11px;
+  border: 1px solid #dfe7ee;
+  border-radius: 7px;
+  background: #fbfcfd;
+}
+
+.source-card strong {
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+.source-card span,
+.source-card small {
+  color: #647386;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 @media (max-width: 1100px) {
   .shell {
     grid-template-columns: 1fr;
@@ -873,12 +1003,15 @@ select:disabled {
 
   .h5-metrics,
   .quality-metrics,
+  .event-metrics,
   .h5-grid,
-  .h5-file-grid {
+  .h5-file-grid,
+  .event-grid {
     grid-template-columns: 1fr;
   }
 
-  .h5-inspector {
+  .h5-inspector,
+  .event-source-panel {
     position: static;
   }
 

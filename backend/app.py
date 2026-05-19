@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from .common import ApiError
-from .pages import channel_quality, eeg, h5_explorer
+from .pages import channel_quality, eeg, events, h5_explorer
 
 
 def create_app() -> FastAPI:
@@ -15,6 +15,7 @@ def create_app() -> FastAPI:
     app.include_router(eeg.router)
     app.include_router(h5_explorer.router)
     app.include_router(channel_quality.router)
+    app.include_router(events.router)
     return app
 
 

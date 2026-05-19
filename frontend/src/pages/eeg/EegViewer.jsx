@@ -511,6 +511,8 @@ export default function EegViewer({ initialSelection = {}, onBack }) {
   const [stackedSamplesPerChannel, setStackedSamplesPerChannel] = useState(7000);
   const [xScaleMode, setXScaleMode] = useState("sample");
   const [sampleRate, setSampleRate] = useState(1024);
+  const [startSample, setStartSample] = useState(initialSelection.start);
+  const [windowPoints, setWindowPoints] = useState(initialSelection.points);
   const [status, setStatus] = useState("Loading subjects...");
   const [isLoading, setIsLoading] = useState(false);
   const [copyStatus, setCopyStatus] = useState("");
@@ -538,11 +540,22 @@ export default function EegViewer({ initialSelection = {}, onBack }) {
     if (!nextSubject || !nextFile || nextChannel === "") return;
     const fileIndex = nextFiles.findIndex((item) => item.id === nextFile);
     if (fileIndex < 0) return;
-    const nextUrl = `/eeg?S=S_${nextSubject}&FILE=${fileIndex}&CH=CH_${nextChannel}`;
+    const params = new URLSearchParams({
+      S: `S_${nextSubject}`,
+      FILE: String(fileIndex),
+      CH: `CH_${nextChannel}`,
+    });
+    if (startSample !== null && startSample !== undefined && startSample !== "" && Number.isFinite(Number(startSample))) {
+      params.set("START", String(Math.max(0, Math.floor(Number(startSample)))));
+    }
+    if (windowPoints !== null && windowPoints !== undefined && windowPoints !== "" && Number.isFinite(Number(windowPoints))) {
+      params.set("POINTS", String(Math.max(1, Math.floor(Number(windowPoints)))));
+    }
+    const nextUrl = `/eeg?${params.toString()}`;
     if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
       window.history.replaceState(null, "", nextUrl);
     }
-  }, [files]);
+  }, [files, startSample, windowPoints]);
   const applyStackedSettings = ({ lowerPercentile, upperPercentile, samplesPerChannel }) => {
     setStackedLowerPercentile(lowerPercentile);
     setStackedUpperPercentile(upperPercentile);
@@ -612,14 +625,21 @@ export default function EegViewer({ initialSelection = {}, onBack }) {
     if (!subject || !file || channel === "") return;
     setIsLoading(true);
     setStatus("Reading H5 channel data...");
-    api("/api/data", { subject, file, channel, max_points: normalizedMaxPoints })
+    api("/api/data", {
+      subject,
+      file,
+      channel,
+      max_points: normalizedMaxPoints,
+      start: startSample,
+      points: windowPoints,
+    })
       .then((data) => {
         setPlotData(data);
         setStatus(`Loaded ${data.window_samples.toLocaleString()} samples`);
       })
       .catch((error) => setStatus(error.message))
       .finally(() => setIsLoading(false));
-  }, [subject, file, channel, normalizedMaxPoints]);
+  }, [subject, file, channel, normalizedMaxPoints, startSample, windowPoints]);
 
   const loadAllChannels = useCallback(() => {
     if (!subject || !file || !showAllChannels) return;

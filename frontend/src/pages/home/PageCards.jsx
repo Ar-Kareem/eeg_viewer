@@ -18,6 +18,15 @@ const CARDS = [
     icon: "QC",
   },
   {
+    id: "event-explorer",
+    title: "Event Explorer",
+    kicker: "Annotations",
+    description: "Find event-like H5 data, review seizures or stimulation markers, and jump into centered traces.",
+    action: "Open Events",
+    stats: ["Events", "Timeline", "Jump"],
+    icon: "EV",
+  },
+  {
     id: "h5-explorer",
     title: "H5 Explorer",
     kicker: "File internals",

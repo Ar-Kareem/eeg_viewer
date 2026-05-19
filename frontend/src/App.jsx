@@ -3,6 +3,7 @@ import EegViewer from "./pages/eeg/EegViewer.jsx";
 import H5Explorer from "./pages/h5/H5Explorer.jsx";
 import PageCards from "./pages/home/PageCards.jsx";
 import ChannelQualityDashboard from "./pages/quality/ChannelQualityDashboard.jsx";
+import EventExplorer from "./pages/events/EventExplorer.jsx";
 
 function parseLocation() {
   const parts = window.location.pathname.split("/").filter(Boolean);
@@ -11,6 +12,9 @@ function parseLocation() {
   }
   if (parts[0] === "quality") {
     return { page: "channel-quality", eeg: {} };
+  }
+  if (parts[0] === "events") {
+    return { page: "event-explorer", eeg: {} };
   }
 
   if (parts[0] !== "eeg") {
@@ -27,6 +31,8 @@ function parseLocation() {
       subject: subjectParam.startsWith("S_") ? subjectParam.slice(2) : subjectParam,
       fileIndex: fileParam === null ? null : Number(fileParam),
       channel: channelParam.startsWith("CH_") ? channelParam.slice(3) : channelParam,
+      start: params.get("START") === null ? null : Number(params.get("START")),
+      points: params.get("POINTS") === null ? null : Number(params.get("POINTS")),
     },
   };
 }
@@ -50,6 +56,9 @@ export default function App() {
     } else if (page === "channel-quality") {
       window.history.pushState(null, "", "/quality");
       setRoute(parseLocation());
+    } else if (page === "event-explorer") {
+      window.history.pushState(null, "", "/events");
+      setRoute(parseLocation());
     }
   };
 
@@ -68,6 +77,10 @@ export default function App() {
 
   if (route.page === "channel-quality") {
     return <ChannelQualityDashboard onBack={goHome} />;
+  }
+
+  if (route.page === "event-explorer") {
+    return <EventExplorer onBack={goHome} />;
   }
 
   return <PageCards onOpen={openPage} />;

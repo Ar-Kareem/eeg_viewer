@@ -6,9 +6,9 @@
 - [x] Add quick links from each channel row to the EEG Viewer.
 
 ## 2 Event / Annotation Explorer
-- [ ] Detect and display events, seizures, stimulation markers, annotations, or marked intervals when present.
-- [ ] Add event timeline with jump-to-EEG controls.
-- [ ] Support event-centered trace windows.
+- [x] Detect and display events, seizures, stimulation markers, annotations, or marked intervals when present.
+- [x] Add event timeline with jump-to-EEG controls.
+- [x] Support event-centered trace windows.
 
 ## 3 Spectral Viewer
 - [ ] Plot power spectrum for selected channel/window.
