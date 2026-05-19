@@ -8,6 +8,15 @@ const MAIN_CARDS = [
     stats: ["Subjects", "Channels", "Snippets"],
     icon: "EEG",
   },
+  {
+    id: "h5-explorer",
+    title: "H5 Explorer",
+    kicker: "File internals",
+    description: "Inspect H5 groups, datasets, attributes, shapes, compression, previews, and storage details.",
+    action: "Open Explorer",
+    stats: ["Groups", "Datasets", "Attrs"],
+    icon: "H5",
+  },
 ];
 
 const SLOP_CARDS = [
@@ -28,15 +37,6 @@ const SLOP_CARDS = [
     action: "Open Events",
     stats: ["Events", "Timeline", "Jump"],
     icon: "EV",
-  },
-  {
-    id: "h5-explorer",
-    title: "H5 Explorer",
-    kicker: "File internals",
-    description: "Inspect H5 groups, datasets, attributes, shapes, compression, previews, and storage details.",
-    action: "Open Explorer",
-    stats: ["Groups", "Datasets", "Attrs"],
-    icon: "H5",
   },
 ];
 
