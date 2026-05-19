@@ -48,15 +48,6 @@ const SLOP_CARDS = [
     icon: "AR",
   },
   {
-    id: "channel-quality",
-    title: "Channel Quality",
-    kicker: "QC ranking",
-    description: "Rank iEEG channels by noise, flatlines, missing values, outliers, and saturation signals.",
-    action: "Open QC",
-    stats: ["Noise", "Flatlines", "Outliers"],
-    icon: "QC",
-  },
-  {
     id: "event-explorer",
     title: "Event Explorer",
     kicker: "Annotations",

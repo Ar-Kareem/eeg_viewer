@@ -30,6 +30,18 @@ def sampled_channel_values(dataset: h5py.Dataset, max_points: int) -> np.ndarray
     return np.concatenate(chunks).astype(np.float64)
 
 
+def sampled_channel_preview(dataset: h5py.Dataset, max_points: int) -> tuple[list[int | None], np.ndarray]:
+    total_samples = int(dataset.shape[-1])
+    if total_samples <= max_points:
+        values = dataset[0, :].astype(np.float64)
+        return list(range(total_samples)), values
+
+    start = max(0, (total_samples - max_points) // 2)
+    stop = min(total_samples, start + max_points)
+    values = dataset[0, start:stop].astype(np.float64)
+    return list(range(start, stop)), values
+
+
 def read_channel_quality(subject: str, raw_stem: str, max_points: int) -> dict[str, object]:
     max_points = max(100, min(max_points, 50_000))
     channels = read_channels(subject, raw_stem)
@@ -162,6 +174,125 @@ def read_channel_quality(subject: str, raw_stem: str, max_points: int) -> dict[s
     }
 
 
+def read_channel_quality_preview(subject: str, raw_stem: str, max_points: int) -> dict[str, object]:
+    max_points = max(100, min(max_points, 5_000))
+    channels = read_channels(subject, raw_stem)
+    _, h5_path = data_paths(subject, raw_stem)
+    traces = []
+    total_samples = 0
+    downsample_step = 1
+
+    with h5py.File(h5_path, "r") as h5_file:
+        group = h5_file["data"]
+        for channel in channels:
+            channel_index = int(channel["id"])
+            dataset_name = f"channel_{channel_index}"
+            if dataset_name not in group:
+                continue
+
+            dataset = group[dataset_name]
+            total_samples = int(dataset.shape[-1])
+            downsample_step = max(1, math.ceil(total_samples / max_points))
+            sample_indexes, raw = sampled_channel_preview(dataset, max_points)
+            cal = float(group["cal"][channel_index])
+            offset = float(group["offsets"][channel_index])
+            gain = float(group["gains"][channel_index])
+            values = (raw * cal + offset) * gain
+            finite = values[np.isfinite(values)]
+
+            traces.append(
+                {
+                    "id": channel_index,
+                    "label": channel.get("correct_ch") or channel.get("edf_ch") or f"channel_{channel_index}",
+                    "x": sample_indexes,
+                    "y": [None if not np.isfinite(value) else float(value) for value in values],
+                    "min": float(np.min(finite)) if finite.size else None,
+                    "max": float(np.max(finite)) if finite.size else None,
+                }
+            )
+
+    return {
+        "subject": subject,
+        "file": file_stem(raw_stem),
+        "total_samples": total_samples,
+        "downsample_step": downsample_step,
+        "max_points": max_points,
+        "traces": traces,
+    }
+
+
+def channel_envelope(dataset: h5py.Dataset, max_bins: int) -> tuple[list[int | None], np.ndarray]:
+    total_samples = int(dataset.shape[-1])
+    if total_samples == 0:
+        return [], np.array([], dtype=np.float64)
+
+    max_bins = max(100, min(max_bins, total_samples))
+    bin_min = np.full(max_bins, np.inf, dtype=np.float64)
+    bin_max = np.full(max_bins, -np.inf, dtype=np.float64)
+    chunk_size = 1_000_000
+
+    for start in range(0, total_samples, chunk_size):
+        stop = min(total_samples, start + chunk_size)
+        raw = dataset[0, start:stop].astype(np.float64)
+        indexes = ((np.arange(start, stop, dtype=np.int64) * max_bins) // total_samples).astype(np.int64)
+        np.minimum.at(bin_min, indexes, raw)
+        np.maximum.at(bin_max, indexes, raw)
+
+    x_values: list[int | None] = []
+    y_values = []
+    for index, (low, high) in enumerate(zip(bin_min, bin_max)):
+        if not np.isfinite(low) or not np.isfinite(high):
+            continue
+        sample = int(((index + 0.5) * total_samples) / max_bins)
+        x_values.extend([sample, sample, None])
+        y_values.extend([low, high, np.nan])
+    return x_values, np.array(y_values, dtype=np.float64)
+
+
+def read_channel_quality_envelope(subject: str, raw_stem: str, max_bins: int) -> dict[str, object]:
+    max_bins = max(100, min(max_bins, 2_000))
+    channels = read_channels(subject, raw_stem)
+    _, h5_path = data_paths(subject, raw_stem)
+    traces = []
+    total_samples = 0
+
+    with h5py.File(h5_path, "r") as h5_file:
+        group = h5_file["data"]
+        for channel in channels:
+            channel_index = int(channel["id"])
+            dataset_name = f"channel_{channel_index}"
+            if dataset_name not in group:
+                continue
+
+            dataset = group[dataset_name]
+            total_samples = int(dataset.shape[-1])
+            sample_indexes, raw_envelope = channel_envelope(dataset, max_bins)
+            cal = float(group["cal"][channel_index])
+            offset = float(group["offsets"][channel_index])
+            gain = float(group["gains"][channel_index])
+            values = (raw_envelope * cal + offset) * gain
+            finite = values[np.isfinite(values)]
+
+            traces.append(
+                {
+                    "id": channel_index,
+                    "label": channel.get("correct_ch") or channel.get("edf_ch") or f"channel_{channel_index}",
+                    "x": sample_indexes,
+                    "y": [None if not np.isfinite(value) else float(value) for value in values],
+                    "min": float(np.min(finite)) if finite.size else None,
+                    "max": float(np.max(finite)) if finite.size else None,
+                }
+            )
+
+    return {
+        "subject": subject,
+        "file": file_stem(raw_stem),
+        "total_samples": total_samples,
+        "max_bins": max_bins,
+        "traces": traces,
+    }
+
+
 @router.get("/channel-quality")
 def api_channel_quality(
     subject: str,
@@ -169,3 +300,21 @@ def api_channel_quality(
     max_points: int = Query(default=QUALITY_MAX_POINTS, ge=100, le=50_000),
 ) -> dict[str, object]:
     return read_channel_quality(subject, file, max_points)
+
+
+@router.get("/channel-quality-preview")
+def api_channel_quality_preview(
+    subject: str,
+    file: str,
+    max_points: int = Query(default=1200, ge=100, le=5_000),
+) -> dict[str, object]:
+    return read_channel_quality_preview(subject, file, max_points)
+
+
+@router.get("/channel-quality-envelope")
+def api_channel_quality_envelope(
+    subject: str,
+    file: str,
+    max_bins: int = Query(default=800, ge=100, le=2_000),
+) -> dict[str, object]:
+    return read_channel_quality_envelope(subject, file, max_bins)

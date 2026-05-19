@@ -454,6 +454,14 @@ select:disabled {
   font-size: 18px;
 }
 
+.chart-title-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 8px;
+}
+
 .icon-button {
   display: grid;
   place-items: center;
@@ -612,6 +620,36 @@ select:disabled {
   grid-template-columns: repeat(6, minmax(120px, 1fr));
 }
 
+.h5-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.h5-summary-strip div {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid #dfe7ee;
+  border-radius: 7px;
+  background: #fbfcfd;
+}
+
+.h5-summary-strip span {
+  color: #647386;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.h5-summary-strip strong {
+  color: #17202a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+}
+
 .h5-file-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
@@ -692,7 +730,59 @@ select:disabled {
   background: #fff1f2;
 }
 
-.h5-file-panel h4,
+.collapsible-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.collapsible-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  width: 100%;
+  padding: 14px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.collapsible-header h3 {
+  margin: 0;
+  color: #17202a;
+  font-size: 16px;
+}
+
+.collapsible-header p {
+  margin: 4px 0 0;
+  color: #647386;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.collapsible-header > span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 54px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #cdd7e1;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #445466;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.collapsible-body {
+  display: grid;
+  gap: 14px;
+  padding: 0 14px 14px;
+}
+
 .h5-inspector h4 {
   margin: 0 0 8px;
   color: #26313d;
@@ -724,6 +814,38 @@ select:disabled {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+.h5-metadata-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.h5-metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px 14px;
+  margin: 0;
+}
+
+.h5-metadata-grid div:first-child {
+  grid-column: 1 / -1;
+}
+
+.h5-metadata-grid dt {
+  color: #647386;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.h5-metadata-grid dd {
+  min-width: 0;
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+  color: #17202a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
 .h5-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.45fr);
@@ -733,6 +855,73 @@ select:disabled {
 
 .h5-search {
   margin-bottom: 12px;
+}
+
+.h5-qc-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.h5-qc-action-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.h5-qc-metrics {
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+}
+
+.h5-qc-summary-strip {
+  margin-bottom: 2px;
+}
+
+.view-toggle {
+  display: inline-flex;
+  width: fit-content;
+  overflow: hidden;
+  border: 1px solid #cdd7e1;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.view-toggle label {
+  cursor: pointer;
+}
+
+.view-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.view-toggle span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 72px;
+  min-height: 32px;
+  padding: 0 12px;
+  color: #445466;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.view-toggle input:checked + span {
+  background: #1f6fb2;
+  color: #ffffff;
+}
+
+.h5-qc-plot-wrap {
+  overflow: auto;
+  border: 1px solid #dfe7ee;
+  border-radius: 7px;
+  background: #fbfcfd;
+}
+
+.h5-qc-plot {
+  min-height: 620px;
 }
 
 .h5-table-wrap {
@@ -869,6 +1058,11 @@ select:disabled {
 
 .quality-table-wrap {
   max-height: calc(100vh - 330px);
+}
+
+.h5-qc-table-wrap {
+  max-height: 420px;
+  min-height: 260px;
 }
 
 .quality-table th,
@@ -1425,6 +1619,7 @@ select:disabled {
   }
 
   .h5-metrics,
+  .h5-qc-metrics,
   .quality-metrics,
   .event-metrics,
   .spectral-metrics,
@@ -1434,6 +1629,7 @@ select:disabled {
   .channel-map-metrics,
   .h5-grid,
   .h5-file-grid,
+  .h5-qc-action-row,
   .event-grid,
   .spectral-grid,
   .montage-grid,

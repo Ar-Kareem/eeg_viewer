@@ -641,6 +641,26 @@ export default function EegViewer({ initialSelection = {}, onBack }) {
       .finally(() => setIsLoading(false));
   }, [subject, file, channel, normalizedMaxPoints, startSample, windowPoints]);
 
+  const randomizeWindows = useCallback(() => {
+    if (!subject || !file || channel === "") return;
+    setIsLoading(true);
+    setStatus("Randomizing sample windows...");
+    api("/api/data", {
+      subject,
+      file,
+      channel,
+      max_points: normalizedMaxPoints,
+      start: startSample,
+      points: windowPoints,
+    })
+      .then((data) => {
+        setPlotData(data);
+        setStatus("Randomized 5 sample windows");
+      })
+      .catch((error) => setStatus(error.message))
+      .finally(() => setIsLoading(false));
+  }, [subject, file, channel, normalizedMaxPoints, startSample, windowPoints]);
+
   const loadAllChannels = useCallback(() => {
     if (!subject || !file || !showAllChannels) return;
     setIsLoading(true);
@@ -824,14 +844,19 @@ export default function EegViewer({ initialSelection = {}, onBack }) {
                   : "Waiting for data"}
               </p>
             </div>
-            <button
-              className="icon-button"
-              type="button"
-              aria-label="Single-channel plot settings"
-              onClick={() => setShowMainPlotSettings(true)}
-            >
-              ⚙
-            </button>
+            <div className="chart-title-actions">
+              <button className="secondary compact-button" type="button" onClick={randomizeWindows} disabled={isLoading || !plotData}>
+                Randomize windows
+              </button>
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="Single-channel plot settings"
+                onClick={() => setShowMainPlotSettings(true)}
+              >
+                ⚙
+              </button>
+            </div>
           </div>
           <SnippetGrid
             snippets={plotData?.snippets}
