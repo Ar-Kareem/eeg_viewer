@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from .errors import ApiError
+from .common import ApiError
 from .pages import channel_quality, eeg, h5_explorer
 
 

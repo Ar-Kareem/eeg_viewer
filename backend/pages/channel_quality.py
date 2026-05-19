@@ -6,8 +6,7 @@ from fastapi import APIRouter, Query
 import h5py
 import numpy as np
 
-from ..config import QUALITY_MAX_POINTS
-from ..data_access import data_paths, file_stem, read_channels
+from ..common import QUALITY_MAX_POINTS, data_paths, file_stem, read_channels
 
 router = APIRouter(prefix="/api", tags=["Channel Quality"])
 

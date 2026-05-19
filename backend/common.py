@@ -7,12 +7,24 @@ from pathlib import Path
 
 import h5py
 
-from .config import DATA_ROOT
-from .errors import ApiError
+DATA_ROOT = Path("/storage/czw/mgh_focal_h5s_scaled")
+PORT = 8739
+SNIPPET_SAMPLE_RATE = 1024
+SNIPPET_COUNT = 5
+H5_PREVIEW_ITEMS = 16
+H5_SMALL_DATASET_LIMIT = 100_000
+QUALITY_MAX_POINTS = 5000
 
 SUBJECT_RE = re.compile(r"^\d+$")
 HASH_RE = re.compile(r"^[A-Za-z0-9_-]+_scaled$")
 CHANNEL_RE = re.compile(r"^\d+$")
+
+
+class ApiError(Exception):
+    def __init__(self, status: HTTPStatus, message: str):
+        self.status = status
+        self.message = message
+        super().__init__(message)
 
 
 def subject_path(subject: str) -> Path:

@@ -6,8 +6,7 @@ from fastapi import APIRouter
 import h5py
 import numpy as np
 
-from ..config import H5_PREVIEW_ITEMS, H5_SMALL_DATASET_LIMIT
-from ..data_access import data_paths, file_stem
+from ..common import H5_PREVIEW_ITEMS, H5_SMALL_DATASET_LIMIT, data_paths, file_stem
 
 router = APIRouter(prefix="/api", tags=["H5 Explorer"])
 

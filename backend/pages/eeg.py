@@ -8,9 +8,17 @@ from fastapi import APIRouter
 import h5py
 import numpy as np
 
-from ..config import SNIPPET_COUNT, SNIPPET_SAMPLE_RATE
-from ..data_access import CHANNEL_RE, data_paths, file_stem, list_files, list_subjects, read_channels
-from ..errors import ApiError
+from ..common import (
+    CHANNEL_RE,
+    SNIPPET_COUNT,
+    SNIPPET_SAMPLE_RATE,
+    ApiError,
+    data_paths,
+    file_stem,
+    list_files,
+    list_subjects,
+    read_channels,
+)
 
 router = APIRouter(prefix="/api", tags=["EEG Viewer"])
 
