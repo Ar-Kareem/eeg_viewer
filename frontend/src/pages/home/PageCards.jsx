@@ -30,6 +30,15 @@ const SLOP_CARDS = [
     icon: "SP",
   },
   {
+    id: "montage-builder",
+    title: "Montage Builder",
+    kicker: "Derived traces",
+    description: "Build referential or bipolar derivations, plot custom pairs, and copy montage definitions.",
+    action: "Open Montage",
+    stats: ["Bipolar", "Reference", "Copy"],
+    icon: "MG",
+  },
+  {
     id: "channel-quality",
     title: "Channel Quality",
     kicker: "QC ranking",

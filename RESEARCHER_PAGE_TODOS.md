@@ -17,9 +17,9 @@
 - [x] Highlight line noise and broad frequency abnormalities.
 
 ## 4 Montage Builder
-- [ ] Support referential and bipolar derivations.
-- [ ] Let users define custom channel pairs.
-- [ ] Save or copy derived montage definitions.
+- [x] Support referential and bipolar derivations.
+- [x] Let users define custom channel pairs.
+- [x] Save or copy derived montage definitions.
 
 ## 5 Artifact Review
 - [ ] Detect likely flat channels, movement bursts, amplifier saturation, high-frequency noise, and 60 Hz contamination.

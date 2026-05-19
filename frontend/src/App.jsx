@@ -5,6 +5,7 @@ import PageCards from "./pages/home/PageCards.jsx";
 import ChannelQualityDashboard from "./pages/quality/ChannelQualityDashboard.jsx";
 import EventExplorer from "./pages/events/EventExplorer.jsx";
 import SpectralViewer from "./pages/spectral/SpectralViewer.jsx";
+import MontageBuilder from "./pages/montage/MontageBuilder.jsx";
 
 function parseLocation() {
   const parts = window.location.pathname.split("/").filter(Boolean);
@@ -19,6 +20,9 @@ function parseLocation() {
   }
   if (parts[0] === "spectral") {
     return { page: "spectral-viewer", eeg: {} };
+  }
+  if (parts[0] === "montage") {
+    return { page: "montage-builder", eeg: {} };
   }
 
   if (parts[0] !== "eeg") {
@@ -66,6 +70,9 @@ export default function App() {
     } else if (page === "spectral-viewer") {
       window.history.pushState(null, "", "/spectral");
       setRoute(parseLocation());
+    } else if (page === "montage-builder") {
+      window.history.pushState(null, "", "/montage");
+      setRoute(parseLocation());
     }
   };
 
@@ -92,6 +99,10 @@ export default function App() {
 
   if (route.page === "spectral-viewer") {
     return <SpectralViewer onBack={goHome} />;
+  }
+
+  if (route.page === "montage-builder") {
+    return <MontageBuilder onBack={goHome} />;
   }
 
   return <PageCards onOpen={openPage} />;
