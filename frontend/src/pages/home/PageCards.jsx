@@ -1,4 +1,4 @@
-const CARDS = [
+const MAIN_CARDS = [
   {
     id: "eeg-viewer",
     title: "EEG Viewer",
@@ -8,6 +8,9 @@ const CARDS = [
     stats: ["Subjects", "Channels", "Snippets"],
     icon: "EEG",
   },
+];
+
+const SLOP_CARDS = [
   {
     id: "channel-quality",
     title: "Channel Quality",
@@ -37,6 +40,29 @@ const CARDS = [
   },
 ];
 
+function CardButton({ card, onOpen }) {
+  return (
+    <button className="page-card" type="button" onClick={() => onOpen(card.id)}>
+      <div className="page-card-top">
+        <div className="page-card-icon" aria-hidden="true">
+          {card.icon}
+        </div>
+        <div>
+          <span>{card.kicker}</span>
+          <h2>{card.title}</h2>
+        </div>
+      </div>
+      <p>{card.description}</p>
+      <div className="page-card-tags">
+        {card.stats.map((item) => (
+          <small key={item}>{item}</small>
+        ))}
+      </div>
+      <strong>{card.action}</strong>
+    </button>
+  );
+}
+
 export default function PageCards({ onOpen }) {
   return (
     <main className="home-shell">
@@ -48,27 +74,22 @@ export default function PageCards({ onOpen }) {
         </div>
       </header>
 
-      <section className="page-card-grid" aria-label="Main pages">
-        {CARDS.map((card) => (
-          <button className="page-card" key={card.id} type="button" onClick={() => onOpen(card.id)}>
-            <div className="page-card-top">
-              <div className="page-card-icon" aria-hidden="true">
-                {card.icon}
-              </div>
-              <div>
-                <span>{card.kicker}</span>
-                <h2>{card.title}</h2>
-              </div>
-            </div>
-            <p>{card.description}</p>
-            <div className="page-card-tags">
-              {card.stats.map((item) => (
-                <small key={item}>{item}</small>
-              ))}
-            </div>
-            <strong>{card.action}</strong>
-          </button>
-        ))}
+      <section className="home-section" aria-labelledby="main-pages-title">
+        <h2 id="main-pages-title">Main Cards</h2>
+        <div className="page-card-grid main-card-grid">
+          {MAIN_CARDS.map((card) => (
+            <CardButton card={card} key={card.id} onOpen={onOpen} />
+          ))}
+        </div>
+      </section>
+
+      <section className="home-section slop-section" aria-labelledby="slop-pages-title">
+        <h2 id="slop-pages-title">Slop</h2>
+        <div className="page-card-grid slop-card-grid">
+          {SLOP_CARDS.map((card) => (
+            <CardButton card={card} key={card.id} onOpen={onOpen} />
+          ))}
+        </div>
       </section>
     </main>
   );

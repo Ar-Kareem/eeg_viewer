@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 async function api(path, params = {}) {
   const url = new URL(path, window.location.origin);
@@ -28,17 +28,29 @@ function eventClass(type) {
   return "event";
 }
 
+function fileCardClass(row) {
+  if (row.status === "pending" || row.status === "scanning") return row.status;
+  if (row.status === "error") return "error";
+  if ((row.event_count || 0) >= 10) return "many-events";
+  if ((row.event_count || 0) > 0) return "has-events";
+  if ((row.source_count || 0) > 0) return "has-sources";
+  return "no-events";
+}
+
+function Spinner() {
+  return <span className="tiny-spinner" aria-label="Scanning" />;
+}
+
 export default function EventExplorer({ onBack }) {
   const [subjects, setSubjects] = useState([]);
-  const [files, setFiles] = useState([]);
   const [subject, setSubject] = useState("");
-  const [selectedFile, setSelectedFile] = useState("");
-  const [fileIndex, setFileIndex] = useState(0);
-  const [eventsData, setEventsData] = useState(null);
+  const [scanRows, setScanRows] = useState([]);
+  const [selectedId, setSelectedId] = useState("");
   const [query, setQuery] = useState("");
   const [windowSamples, setWindowSamples] = useState(4096);
   const [status, setStatus] = useState("Loading subjects...");
   const [loading, setLoading] = useState(false);
+  const scanVersion = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,7 +59,7 @@ export default function EventExplorer({ onBack }) {
         if (cancelled) return;
         setSubjects(payload.subjects || []);
         setSubject(payload.subjects?.[0] || "");
-        setStatus(payload.subjects?.length ? "Pick an H5 file to inspect." : "No subjects found.");
+        setStatus(payload.subjects?.length ? "Pick a subject to scan." : "No subjects found.");
       })
       .catch((error) => {
         if (!cancelled) setStatus(error.message);
@@ -57,77 +69,128 @@ export default function EventExplorer({ onBack }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (!subject) {
-      setFiles([]);
-      setSelectedFile("");
-      setEventsData(null);
-      return;
-    }
-
-    let cancelled = false;
-    setEventsData(null);
+  const scanSubject = async (nextSubject) => {
+    if (!nextSubject) return;
+    const version = scanVersion.current + 1;
+    scanVersion.current = version;
+    setLoading(true);
+    setSelectedId("");
     setStatus("Loading H5 files...");
-    api("/api/files", { subject })
-      .then((payload) => {
-        if (cancelled) return;
-        const nextFiles = payload.files || [];
-        setFiles(nextFiles);
-        setSelectedFile(nextFiles[0]?.id || "");
-        setFileIndex(0);
-        setStatus(nextFiles.length ? "Pick an H5 file to inspect." : "No H5 files found for this subject.");
-      })
-      .catch((error) => {
-        if (!cancelled) setStatus(error.message);
-      });
-    return () => {
-      cancelled = true;
-    };
+
+    try {
+      const payload = await api("/api/files", { subject: nextSubject });
+      if (scanVersion.current !== version) return;
+      const files = payload.files || [];
+      const initialRows = files.map((file, index) => ({
+        id: file.id,
+        h5: file.h5,
+        index,
+        status: "pending",
+        event_count: null,
+        source_count: null,
+        data: null,
+        error: "",
+      }));
+      setScanRows(initialRows);
+      setStatus(files.length ? `Scanning 0/${files.length} H5 files...` : "No H5 files found for this subject.");
+      if (!files.length) {
+        setLoading(false);
+        return;
+      }
+
+      let cursor = 0;
+      let completed = 0;
+      const workerCount = Math.min(4, files.length);
+      const runWorker = async () => {
+        while (scanVersion.current === version) {
+          const fileIndex = cursor;
+          cursor += 1;
+          if (fileIndex >= files.length) return;
+          const file = files[fileIndex];
+          setScanRows((rows) =>
+            rows.map((row) => (row.id === file.id ? { ...row, status: "scanning" } : row))
+          );
+
+          try {
+            const eventPayload = await api("/api/events", { subject: nextSubject, file: file.id });
+            if (scanVersion.current !== version) return;
+            setScanRows((rows) =>
+              rows.map((row) =>
+                row.id === file.id
+                  ? {
+                      ...row,
+                      status: "done",
+                      event_count: eventPayload.event_count,
+                      source_count: eventPayload.sources.length,
+                      data: eventPayload,
+                    }
+                  : row
+              )
+            );
+          } catch (error) {
+            if (scanVersion.current !== version) return;
+            setScanRows((rows) =>
+              rows.map((row) =>
+                row.id === file.id ? { ...row, status: "error", error: error.message } : row
+              )
+            );
+          } finally {
+            completed += 1;
+            if (scanVersion.current === version) {
+              setStatus(`Scanning ${completed}/${files.length} H5 files...`);
+            }
+          }
+        }
+      };
+
+      await Promise.all(Array.from({ length: workerCount }, runWorker));
+      if (scanVersion.current === version) {
+        setLoading(false);
+        setStatus(`Finished scanning ${files.length} H5 files.`);
+      }
+    } catch (error) {
+      if (scanVersion.current !== version) return;
+      setLoading(false);
+      setScanRows([]);
+      setStatus(error.message);
+    }
+  };
+
+  useEffect(() => {
+    scanSubject(subject);
   }, [subject]);
 
-  const handleFileChange = (value) => {
-    const nextIndex = files.findIndex((file) => file.id === value);
-    setSelectedFile(value);
-    setFileIndex(Math.max(0, nextIndex));
-    setEventsData(null);
-  };
-
-  const loadEvents = () => {
-    if (!subject || !selectedFile) return;
-    setLoading(true);
-    setStatus("Scanning H5 for event-like datasets...");
-    api("/api/events", { subject, file: selectedFile })
-      .then((payload) => {
-        setEventsData(payload);
-        setStatus(
-          payload.event_count
-            ? `Loaded ${payload.event_count.toLocaleString()} events.`
-            : `No explicit events found; ${payload.sources.length.toLocaleString()} event-like sources detected.`
-        );
-      })
-      .catch((error) => {
-        setEventsData(null);
-        setStatus(error.message);
-      })
-      .finally(() => setLoading(false));
-  };
-
+  const selectedRow = useMemo(
+    () => scanRows.find((row) => row.id === selectedId) || scanRows.find((row) => row.event_count > 0) || null,
+    [scanRows, selectedId]
+  );
+  const selectedData = selectedRow?.data || null;
   const filteredEvents = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const events = eventsData?.events || [];
+    const events = selectedData?.events || [];
     if (!needle) return events;
     return events.filter((event) =>
       `${event.label} ${event.type} ${event.source_path} ${event.start_sample}`.toLowerCase().includes(needle)
     );
-  }, [eventsData, query]);
+  }, [selectedData, query]);
+
+  const counts = useMemo(() => {
+    return {
+      total: scanRows.length,
+      scanned: scanRows.filter((row) => row.status === "done" || row.status === "error").length,
+      withEvents: scanRows.filter((row) => (row.event_count || 0) > 0).length,
+      sourcesOnly: scanRows.filter((row) => !row.event_count && (row.source_count || 0) > 0).length,
+      errors: scanRows.filter((row) => row.status === "error").length,
+    };
+  }, [scanRows]);
 
   const normalizedWindow = Math.max(128, Math.floor(Number(windowSamples) || 4096));
   const timelineEvents = filteredEvents.slice(0, 200);
 
   const eegLink = (event) => {
-    const channel = eventsData?.default_channel ?? 0;
+    const channel = selectedData?.default_channel ?? 0;
     const start = Math.max(0, Math.floor(Number(event.start_sample) - normalizedWindow / 2));
-    return `/eeg?S=S_${subject}&FILE=${fileIndex}&CH=CH_${channel}&START=${start}&POINTS=${normalizedWindow}`;
+    return `/eeg?S=S_${subject}&FILE=${selectedRow.index}&CH=CH_${channel}&START=${start}&POINTS=${normalizedWindow}`;
   };
 
   return (
@@ -137,7 +200,7 @@ export default function EventExplorer({ onBack }) {
           <div className="mark">EV</div>
           <div>
             <h1>Event Explorer</h1>
-            <p>Annotations and marked intervals</p>
+            <p>Subject-wide event scan</p>
           </div>
         </div>
 
@@ -158,17 +221,6 @@ export default function EventExplorer({ onBack }) {
           </label>
 
           <label className="field">
-            <span>H5 file</span>
-            <select value={selectedFile} disabled={!files.length} onChange={(event) => handleFileChange(event.target.value)}>
-              {files.map((file, index) => (
-                <option key={file.id} value={file.id}>
-                  FILE {index} - {file.h5}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="field">
             <span>Centered window samples</span>
             <input
               min="128"
@@ -179,14 +231,15 @@ export default function EventExplorer({ onBack }) {
             />
           </label>
 
-          <button className="primary" type="button" disabled={loading || !selectedFile} onClick={loadEvents}>
-            {loading ? "Scanning..." : "Load Events"}
+          <button className="primary" type="button" disabled={loading || !subject} onClick={() => scanSubject(subject)}>
+            {loading ? "Scanning..." : "Rescan Subject"}
           </button>
         </div>
 
         <div className="advanced">
           <p className="sidebar-note">
-            Scans the H5 file for event, seizure, stimulation, marker, trigger, and annotation-like groups or datasets.
+            Each file card updates as the backend finishes scanning that H5 for event, seizure, stimulation, marker,
+            trigger, and annotation-like data.
           </p>
         </div>
       </aside>
@@ -195,42 +248,77 @@ export default function EventExplorer({ onBack }) {
         <div className="topbar">
           <div>
             <p className="eyebrow">Event and annotation explorer</p>
-            <h2>{eventsData?.h5 || "Event Explorer"}</h2>
+            <h2>{subject ? `Subject S_${subject}` : "Event Explorer"}</h2>
           </div>
           <div className={`status ${loading ? "busy" : ""}`}>{status}</div>
         </div>
 
-        <section className="metric-grid event-metrics" aria-label="Event summary">
+        <section className="metric-grid event-metrics" aria-label="Event scan summary">
           <article>
-            <span>Events</span>
-            <strong>{formatInteger(eventsData?.event_count)}</strong>
+            <span>Files</span>
+            <strong>{formatInteger(counts.total)}</strong>
           </article>
           <article>
-            <span>Sources</span>
-            <strong>{formatInteger(eventsData?.sources?.length)}</strong>
+            <span>Scanned</span>
+            <strong>{formatInteger(counts.scanned)}</strong>
           </article>
           <article>
-            <span>Total samples</span>
-            <strong>{formatInteger(eventsData?.total_samples)}</strong>
+            <span>With events</span>
+            <strong>{formatInteger(counts.withEvents)}</strong>
           </article>
           <article>
-            <span>Default channel</span>
-            <strong>{eventsData?.default_channel === null || eventsData?.default_channel === undefined ? "-" : `CH_${eventsData.default_channel}`}</strong>
+            <span>Sources only</span>
+            <strong>{formatInteger(counts.sourcesOnly)}</strong>
+          </article>
+          <article>
+            <span>Errors</span>
+            <strong>{formatInteger(counts.errors)}</strong>
           </article>
         </section>
 
-        {eventsData ? (
+        <section className="chart-panel event-file-panel">
+          <div className="chart-title">
+            <div>
+              <h3>Files</h3>
+              <p>Tiny cards update as scans finish.</p>
+            </div>
+          </div>
+          <div className="event-file-grid">
+            {scanRows.map((row) => (
+              <button
+                className={`event-file-card ${fileCardClass(row)} ${selectedRow?.id === row.id ? "selected" : ""}`}
+                disabled={!row.data && row.status !== "error"}
+                key={row.id}
+                onClick={() => setSelectedId(row.id)}
+                type="button"
+                title={row.h5}
+              >
+                <span>FILE {row.index}</span>
+                <strong>{row.status === "pending" || row.status === "scanning" ? <Spinner /> : formatInteger(row.event_count || 0)}</strong>
+                <small>
+                  {row.status === "error"
+                    ? "error"
+                    : row.status === "done"
+                      ? `${formatInteger(row.source_count || 0)} sources`
+                      : row.status}
+                </small>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {selectedData ? (
           <>
             <section className="chart-panel event-timeline-panel">
               <div className="chart-title">
                 <div>
-                  <h3>Timeline</h3>
-                  <p>{timelineEvents.length ? "First 200 visible events" : "No event rows available"}</p>
+                  <h3>{selectedData.h5}</h3>
+                  <p>{selectedData.event_count ? "First 200 visible events" : "No event rows in this file"}</p>
                 </div>
               </div>
               <div className="event-timeline">
                 {timelineEvents.map((event) => {
-                  const total = Math.max(1, Number(eventsData.total_samples) || 1);
+                  const total = Math.max(1, Number(selectedData.total_samples) || 1);
                   const left = Math.max(0, Math.min(100, (Number(event.start_sample) / total) * 100));
                   const width = Math.max(0.25, Math.min(100 - left, ((Number(event.duration_samples) || 1) / total) * 100));
                   return (
@@ -299,12 +387,12 @@ export default function EventExplorer({ onBack }) {
                 <div className="chart-title">
                   <div>
                     <h3>Detected Sources</h3>
-                    <p>{formatInteger(eventsData.sources.length)} event-like H5 objects</p>
+                    <p>{formatInteger(selectedData.sources.length)} event-like H5 objects</p>
                   </div>
                 </div>
                 <div className="source-stack">
-                  {eventsData.sources.length ? (
-                    eventsData.sources.map((source) => (
+                  {selectedData.sources.length ? (
+                    selectedData.sources.map((source) => (
                       <article className="source-card" key={source.path}>
                         <strong>{source.path}</strong>
                         <span>{source.kind}</span>
@@ -319,7 +407,7 @@ export default function EventExplorer({ onBack }) {
             </section>
           </>
         ) : (
-          <div className="empty-chart">Load an H5 file to inspect event-like datasets and annotations.</div>
+          <div className="empty-chart">Select a scanned file card with events or sources to inspect details.</div>
         )}
       </section>
     </main>

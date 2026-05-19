@@ -42,12 +42,39 @@ body {
   font-size: 30px;
 }
 
+.home-section {
+  max-width: 1180px;
+  margin: 0 auto 30px;
+}
+
+.home-section h2 {
+  margin: 0 0 12px;
+  color: #26313d;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
 .page-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 320px));
   gap: 16px;
-  max-width: 1180px;
-  margin: 0 auto;
+}
+
+.main-card-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 340px));
+}
+
+.slop-section {
+  padding-top: 22px;
+  border-top: 1px solid #d6dee7;
+}
+
+.slop-section h2 {
+  color: #647386;
+}
+
+.slop-card-grid .page-card {
+  background: #fbfcfd;
 }
 
 .page-card {
@@ -840,7 +867,98 @@ select:disabled {
 }
 
 .event-metrics {
-  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+}
+
+.event-file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  gap: 8px;
+}
+
+.event-file-card {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 4px;
+  min-height: 74px;
+  padding: 8px;
+  border: 1px solid #d6dee7;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #17202a;
+  cursor: pointer;
+  text-align: left;
+}
+
+.event-file-card:disabled {
+  cursor: default;
+}
+
+.event-file-card.selected {
+  outline: 2px solid #1f6fb2;
+  outline-offset: 1px;
+}
+
+.event-file-card span,
+.event-file-card small {
+  color: #647386;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.event-file-card strong {
+  color: #17202a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.event-file-card.pending,
+.event-file-card.scanning {
+  background: #f8fafc;
+}
+
+.event-file-card.no-events {
+  border-color: #d8e1e9;
+  background: #f5f7fa;
+}
+
+.event-file-card.has-sources {
+  border-color: #d8b45d;
+  background: #fff8e6;
+}
+
+.event-file-card.has-events {
+  border-color: #21865b;
+  background: #e7f4ef;
+}
+
+.event-file-card.many-events {
+  border-color: #c43b47;
+  background: #fdecef;
+}
+
+.event-file-card.error {
+  border-color: #c43b47;
+  background: #fff1f2;
+}
+
+.tiny-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #cbd6e2;
+  border-top-color: #1f6fb2;
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .event-timeline {
