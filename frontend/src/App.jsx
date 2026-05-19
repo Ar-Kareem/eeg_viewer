@@ -8,7 +8,6 @@ import SpectralViewer from "./pages/spectral/SpectralViewer.jsx";
 import MontageBuilder from "./pages/montage/MontageBuilder.jsx";
 import ArtifactReview from "./pages/artifacts/ArtifactReview.jsx";
 import HighAmplitudeCandidates from "./pages/candidates/HighAmplitudeCandidates.jsx";
-import ChannelMap from "./pages/channel-map/ChannelMap.jsx";
 
 function parseLocation() {
   const parts = window.location.pathname.split("/").filter(Boolean);
@@ -33,10 +32,6 @@ function parseLocation() {
   if (parts[0] === "candidates") {
     return { page: "high-amplitude-candidates", eeg: {} };
   }
-  if (parts[0] === "channel-map") {
-    return { page: "channel-map", eeg: {} };
-  }
-
   if (parts[0] !== "eeg") {
     return { page: "home", eeg: {} };
   }
@@ -91,9 +86,6 @@ export default function App() {
     } else if (page === "high-amplitude-candidates") {
       window.history.pushState(null, "", "/candidates");
       setRoute(parseLocation());
-    } else if (page === "channel-map") {
-      window.history.pushState(null, "", "/channel-map");
-      setRoute(parseLocation());
     }
   };
 
@@ -132,10 +124,6 @@ export default function App() {
 
   if (route.page === "high-amplitude-candidates") {
     return <HighAmplitudeCandidates onBack={goHome} />;
-  }
-
-  if (route.page === "channel-map") {
-    return <ChannelMap onBack={goHome} />;
   }
 
   return <PageCards onOpen={openPage} />;

@@ -6,7 +6,7 @@ from fastapi import APIRouter
 import h5py
 import numpy as np
 
-from ..common import H5_PREVIEW_ITEMS, H5_SMALL_DATASET_LIMIT, SNIPPET_SAMPLE_RATE, data_paths, file_stem
+from ..common import H5_PREVIEW_ITEMS, H5_SMALL_DATASET_LIMIT, SNIPPET_SAMPLE_RATE, data_paths, file_stem, read_channels
 
 router = APIRouter(prefix="/api", tags=["H5 Explorer"])
 
@@ -93,6 +93,7 @@ def read_h5_info(subject: str, raw_stem: str) -> dict[str, object]:
     total_bytes = 0
     recording_samples = 0
     channel_count = 0
+    ieeg_channel_count = len(read_channels(subject, raw_stem))
 
     with h5py.File(h5_path, "r") as h5_file:
         root_attrs = read_attrs(h5_file.attrs)
@@ -163,6 +164,7 @@ def read_h5_info(subject: str, raw_stem: str) -> dict[str, object]:
             "recording_samples": recording_samples,
             "recording_seconds": recording_samples / SNIPPET_SAMPLE_RATE if recording_samples else 0,
             "channel_count": channel_count,
+            "ieeg_channel_count": ieeg_channel_count,
             "root_attrs": root_attrs,
             "summary": {
                 "groups": group_count,

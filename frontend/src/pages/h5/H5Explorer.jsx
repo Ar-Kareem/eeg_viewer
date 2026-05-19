@@ -106,6 +106,10 @@ function Spinner() {
   return <span className="tiny-spinner" aria-label="Scanning" />;
 }
 
+function channelLabel(channel) {
+  return channel.correct_ch || channel.edf_ch || `CH_${channel.id}`;
+}
+
 function SortButton({ field, sort, children, onSort }) {
   const active = sort.field === field;
   return (
@@ -335,6 +339,9 @@ export default function H5Explorer({ onBack }) {
   const [appliedQualityPlotWindow, setAppliedQualityPlotWindow] = useState({ startMinute: 0, endMinute: 30 });
   const [qualityLoading, setQualityLoading] = useState(false);
   const [qualityStatus, setQualityStatus] = useState("Run QC for the selected H5 file.");
+  const [channelMap, setChannelMap] = useState(null);
+  const [channelMapStatus, setChannelMapStatus] = useState("Select a scanned H5 file.");
+  const [channelMapLoading, setChannelMapLoading] = useState(false);
   const [status, setStatus] = useState("Loading subjects...");
   const [loading, setLoading] = useState(false);
   const scanVersion = useRef(0);
@@ -370,6 +377,9 @@ export default function H5Explorer({ onBack }) {
     setQualityPlotEndMinute(30);
     setAppliedQualityPlotWindow({ startMinute: 0, endMinute: 30 });
     setQualityStatus("Run QC for the selected H5 file.");
+    setChannelMap(null);
+    setChannelMapStatus("Select a scanned H5 file.");
+    setChannelMapLoading(false);
     setStatus("Loading H5 files...");
 
     try {
@@ -458,7 +468,36 @@ export default function H5Explorer({ onBack }) {
     setQualityPlotEndMinute(30);
     setAppliedQualityPlotWindow({ startMinute: 0, endMinute: 30 });
     setQualityStatus(info ? "Run QC for the selected H5 file." : "Select a scanned H5 file.");
+    setChannelMap(null);
+    setChannelMapStatus(info ? "Loading channel map..." : "Select a scanned H5 file.");
   }, [info]);
+
+  useEffect(() => {
+    if (!info || !subject || !selectedRow?.id) return;
+    let cancelled = false;
+    setChannelMapLoading(true);
+    setChannelMapStatus("Loading channel map...");
+    api("/api/channel-map", { subject, file: selectedRow.id })
+      .then((payload) => {
+        if (cancelled) return;
+        setChannelMap(payload);
+        setChannelMapStatus(
+          `${(payload.channels || []).length.toLocaleString()} iEEG channels, ${(payload.coordinate_nodes || []).length.toLocaleString()} coordinate-like datasets.`
+        );
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setChannelMap(null);
+          setChannelMapStatus(error.message);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setChannelMapLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [info, selectedRow, subject]);
 
   const runQuality = () => {
     if (!subject || !selectedRow?.id) return;
@@ -583,6 +622,10 @@ export default function H5Explorer({ onBack }) {
     return Math.max(1, Math.ceil(windowSamples / 7000));
   }, [quality?.downsample_step, qualityPlotEndMinute, qualityPlotStartMinute, qualityView]);
 
+  const channelMapGroups = channelMap?.groups || [];
+  const coordinateNodes = channelMap?.coordinate_nodes || [];
+  const mappedChannels = channelMap?.channels || [];
+
   return (
     <main className="shell">
       <aside className="sidebar">
@@ -598,23 +641,6 @@ export default function H5Explorer({ onBack }) {
           Back to pages
         </button>
 
-        <div className="control-stack">
-          <label className="field">
-            <span>Subject</span>
-            <select value={subject} onChange={(event) => setSubject(event.target.value)}>
-              {subjects.map((item) => (
-                <option key={item} value={item}>
-                  S_{item}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <button className="primary" type="button" disabled={loading || !subject} onClick={() => scanSubject(subject)}>
-            {loading ? "Scanning..." : "Rescan Subject"}
-          </button>
-        </div>
-
       </aside>
 
       <section className="workspace h5-workspace">
@@ -625,6 +651,30 @@ export default function H5Explorer({ onBack }) {
           </div>
           <div className={`status ${loading ? "busy" : ""}`}>{status}</div>
         </div>
+
+        <section className="chart-panel h5-subject-panel">
+          <div className="chart-title">
+            <div>
+              <h3>Subjects</h3>
+            </div>
+            <button className="secondary compact-button" type="button" disabled={loading || !subject} onClick={() => scanSubject(subject)}>
+              {loading ? "Scanning..." : "Rescan"}
+            </button>
+          </div>
+          <div className="h5-subject-card-grid">
+            {subjects.map((item) => (
+              <button
+                className={`h5-subject-card ${subject === item ? "selected" : ""}`}
+                key={item}
+                onClick={() => setSubject(item)}
+                type="button"
+              >
+                <span>Subject</span>
+                <strong>S_{item}</strong>
+              </button>
+            ))}
+          </div>
+        </section>
 
         <section className="h5-summary-strip" aria-label="H5 scan summary">
           <div>
@@ -678,7 +728,10 @@ export default function H5Explorer({ onBack }) {
                     ? "error"
                     : row.status === "done"
                       ? (
-                          <span>{formatInteger(row.info?.channel_count || 0)} Ch</span>
+                          <>
+                            <span>{formatInteger(row.info?.channel_count || 0)} Ch</span>
+                            <span>{formatInteger(row.info?.ieeg_channel_count || 0)} iEEG Ch</span>
+                          </>
                         )
                       : row.status}
                 </small>
@@ -739,6 +792,199 @@ export default function H5Explorer({ onBack }) {
                 </div>
               </dl>
             </section>
+
+            <CollapsiblePanel title="Channel Map" subtitle={channelMapStatus}>
+              {channelMapLoading ? (
+                <div className="empty-inline">Loading channel map...</div>
+              ) : channelMap ? (
+                <div className="h5-channel-map">
+                  <section className="metric-grid channel-map-metrics" aria-label="Channel map summary">
+                    <article>
+                      <span>Groups</span>
+                      <strong>{formatInteger(channelMapGroups.length)}</strong>
+                    </article>
+                    <article>
+                      <span>Channels</span>
+                      <strong>{formatInteger(mappedChannels.length)}</strong>
+                    </article>
+                    <article>
+                      <span>Coordinate datasets</span>
+                      <strong>{formatInteger(coordinateNodes.length)}</strong>
+                    </article>
+                  </section>
+
+                  {coordinateNodes.length ? (
+                    <section className="chart-panel h5-embedded-panel">
+                      <div className="chart-title">
+                        <div>
+                          <h3>Coordinate-Like Datasets</h3>
+                          <p>Possible electrode localization fields found in this H5 file.</p>
+                        </div>
+                      </div>
+                      <div className="h5-table-wrap coordinate-table-wrap">
+                        <table className="h5-node-table">
+                          <thead>
+                            <tr>
+                              <th>Path</th>
+                              <th>Shape</th>
+                              <th>Dtype</th>
+                              <th>Preview</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {coordinateNodes.map((node) => (
+                              <tr key={node.path}>
+                                <td className="mono">{node.path}</td>
+                                <td>{Array.isArray(node.shape) ? node.shape.join(" x ") : "-"}</td>
+                                <td>{node.dtype}</td>
+                                <td className="mono">
+                                  {typeof node.preview === "string" ? node.preview : JSON.stringify(node.preview)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  ) : null}
+
+                  <section className="channel-group-grid">
+                    {channelMapGroups.map((group) => (
+                      <article className="chart-panel channel-group-card h5-embedded-panel" key={group.name}>
+                        <div className="chart-title">
+                          <div>
+                            <h3>{group.name || "Other"}</h3>
+                            <p>{formatInteger(group.channels.length)} channels</p>
+                          </div>
+                        </div>
+                        <div className="channel-chip-grid">
+                          {group.channels.map((channel) => (
+                            <a
+                              className="channel-chip"
+                              href={`/eeg?S=S_${subject}&FILE=${selectedRow.index}&CH=CH_${channel.id}`}
+                              key={channel.id}
+                            >
+                              <strong>CH_{channel.id}</strong>
+                              <span>{channelLabel(channel)}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </article>
+                    ))}
+                  </section>
+                </div>
+              ) : (
+                <div className="empty-inline">No channel map loaded for this H5 file.</div>
+              )}
+            </CollapsiblePanel>
+
+            <CollapsiblePanel title="Objects" subtitle={`${formatInteger(filteredNodes.length)} visible objects`}>
+              <section className="h5-grid">
+                <article className="chart-panel h5-node-list">
+                  <div className="chart-title">
+                    <div>
+                      <h3>Object List</h3>
+                      <p>{formatInteger(filteredNodes.length)} visible objects</p>
+                    </div>
+                  </div>
+                  <label className="field h5-search">
+                    <span>Search path, dtype, or shape</span>
+                    <input value={query} onChange={(event) => setQuery(event.target.value)} />
+                  </label>
+                  <div className="h5-table-wrap">
+                    <table className="h5-node-table">
+                      <thead>
+                        <tr>
+                          <th>Path</th>
+                          <th>Type</th>
+                          <th>Shape</th>
+                          <th>Dtype</th>
+                          <th>Storage</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredNodes.map((node) => (
+                          <tr
+                            className={node.path === selectedPath ? "selected" : ""}
+                            key={node.path}
+                            onClick={() => setSelectedPath(node.path)}
+                          >
+                            <td className="mono">{node.path}</td>
+                            <td>
+                              <span className={`node-pill ${node.kind}`}>{node.kind}</span>
+                            </td>
+                            <td>{node.kind === "dataset" ? shapeLabel(node.shape) : `${node.child_count} children`}</td>
+                            <td>{node.dtype || "-"}</td>
+                            <td>
+                              {node.kind === "dataset"
+                                ? `${formatBytes(node.estimated_bytes)}${node.compression ? `, ${node.compression}` : ""}`
+                                : "-"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </article>
+
+                <aside className="chart-panel h5-inspector">
+                  <div className="chart-title">
+                    <div>
+                      <h3>Inspector</h3>
+                      <p>{selectedNode?.path || "Select an object"}</p>
+                    </div>
+                  </div>
+
+                  {selectedNode ? (
+                    <div className="inspector-stack">
+                      <dl className="h5-definition-list">
+                        <dt>Type</dt>
+                        <dd>{selectedNode.kind}</dd>
+                        {selectedNode.kind === "dataset" ? (
+                          <>
+                            <dt>Shape</dt>
+                            <dd>{shapeLabel(selectedNode.shape)}</dd>
+                            <dt>Dtype</dt>
+                            <dd>{selectedNode.dtype}</dd>
+                            <dt>Chunks</dt>
+                            <dd>{compactJson(selectedNode.chunks)}</dd>
+                            <dt>Compression</dt>
+                            <dd>{selectedNode.compression || "none"}</dd>
+                            <dt>Max shape</dt>
+                            <dd>{compactJson(selectedNode.maxshape)}</dd>
+                          </>
+                        ) : (
+                          <>
+                            <dt>Children</dt>
+                            <dd>{compactJson(selectedNode.children)}</dd>
+                          </>
+                        )}
+                      </dl>
+
+                      <section>
+                        <h4>Attributes</h4>
+                        <AttributeTable attrs={selectedNode.attrs} />
+                      </section>
+
+                      {selectedNode.kind === "dataset" ? (
+                        <>
+                          <section>
+                            <h4>Preview</h4>
+                            <PrettyBlock value={selectedNode.preview} />
+                          </section>
+                          <section>
+                            <h4>Numeric summary</h4>
+                            <PrettyBlock value={selectedNode.numeric_summary} />
+                          </section>
+                        </>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="empty-inline">Select a group or dataset.</div>
+                  )}
+                </aside>
+              </section>
+            </CollapsiblePanel>
 
             <CollapsiblePanel className="h5-qc-panel" title="Channel Quality" subtitle={qualityStatus}>
               <div className="h5-qc-action-row">
@@ -932,114 +1178,6 @@ export default function H5Explorer({ onBack }) {
               ) : (
                 <div className="empty-inline">Run QC to rank iEEG channels by sampled quality metrics.</div>
               )}
-            </CollapsiblePanel>
-
-            <CollapsiblePanel title="Objects" subtitle={`${formatInteger(filteredNodes.length)} visible objects`}>
-              <section className="h5-grid">
-                <article className="chart-panel h5-node-list">
-                  <div className="chart-title">
-                    <div>
-                      <h3>Object List</h3>
-                      <p>{formatInteger(filteredNodes.length)} visible objects</p>
-                    </div>
-                  </div>
-                  <label className="field h5-search">
-                    <span>Search path, dtype, or shape</span>
-                    <input value={query} onChange={(event) => setQuery(event.target.value)} />
-                  </label>
-                  <div className="h5-table-wrap">
-                    <table className="h5-node-table">
-                      <thead>
-                        <tr>
-                          <th>Path</th>
-                          <th>Type</th>
-                          <th>Shape</th>
-                          <th>Dtype</th>
-                          <th>Storage</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredNodes.map((node) => (
-                          <tr
-                            className={node.path === selectedPath ? "selected" : ""}
-                            key={node.path}
-                            onClick={() => setSelectedPath(node.path)}
-                          >
-                            <td className="mono">{node.path}</td>
-                            <td>
-                              <span className={`node-pill ${node.kind}`}>{node.kind}</span>
-                            </td>
-                            <td>{node.kind === "dataset" ? shapeLabel(node.shape) : `${node.child_count} children`}</td>
-                            <td>{node.dtype || "-"}</td>
-                            <td>
-                              {node.kind === "dataset"
-                                ? `${formatBytes(node.estimated_bytes)}${node.compression ? `, ${node.compression}` : ""}`
-                                : "-"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </article>
-
-                <aside className="chart-panel h5-inspector">
-                  <div className="chart-title">
-                    <div>
-                      <h3>Inspector</h3>
-                      <p>{selectedNode?.path || "Select an object"}</p>
-                    </div>
-                  </div>
-
-                  {selectedNode ? (
-                    <div className="inspector-stack">
-                      <dl className="h5-definition-list">
-                        <dt>Type</dt>
-                        <dd>{selectedNode.kind}</dd>
-                        {selectedNode.kind === "dataset" ? (
-                          <>
-                            <dt>Shape</dt>
-                            <dd>{shapeLabel(selectedNode.shape)}</dd>
-                            <dt>Dtype</dt>
-                            <dd>{selectedNode.dtype}</dd>
-                            <dt>Chunks</dt>
-                            <dd>{compactJson(selectedNode.chunks)}</dd>
-                            <dt>Compression</dt>
-                            <dd>{selectedNode.compression || "none"}</dd>
-                            <dt>Max shape</dt>
-                            <dd>{compactJson(selectedNode.maxshape)}</dd>
-                          </>
-                        ) : (
-                          <>
-                            <dt>Children</dt>
-                            <dd>{compactJson(selectedNode.children)}</dd>
-                          </>
-                        )}
-                      </dl>
-
-                      <section>
-                        <h4>Attributes</h4>
-                        <AttributeTable attrs={selectedNode.attrs} />
-                      </section>
-
-                      {selectedNode.kind === "dataset" ? (
-                        <>
-                          <section>
-                            <h4>Preview</h4>
-                            <PrettyBlock value={selectedNode.preview} />
-                          </section>
-                          <section>
-                            <h4>Numeric summary</h4>
-                            <PrettyBlock value={selectedNode.numeric_summary} />
-                          </section>
-                        </>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="empty-inline">Select a group or dataset.</div>
-                  )}
-                </aside>
-              </section>
             </CollapsiblePanel>
           </>
         ) : (

@@ -650,6 +650,53 @@ select:disabled {
   font-size: 14px;
 }
 
+.h5-subject-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.h5-subject-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(74px, 92px));
+  gap: 8px;
+}
+
+.h5-subject-card {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 5px;
+  aspect-ratio: 1;
+  padding: 8px;
+  border: 1px solid #d6dee7;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #17202a;
+  cursor: pointer;
+  text-align: left;
+}
+
+.h5-subject-card.selected {
+  outline: 2px solid #1f6fb2;
+  outline-offset: 1px;
+  border-color: #1f6fb2;
+  background: #eef6ff;
+}
+
+.h5-subject-card span {
+  color: #647386;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.h5-subject-card strong {
+  color: #17202a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 18px;
+  line-height: 1;
+}
+
 .h5-file-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
@@ -936,6 +983,15 @@ select:disabled {
 
 .h5-qc-plot {
   min-height: 620px;
+}
+
+.h5-channel-map {
+  display: grid;
+  gap: 14px;
+}
+
+.h5-embedded-panel {
+  box-shadow: none;
 }
 
 .h5-table-wrap {
@@ -1526,8 +1582,7 @@ select:disabled {
   background: #fdecef;
 }
 
-.candidate-workspace,
-.channel-map-workspace {
+.candidate-workspace {
   gap: 14px;
 }
 

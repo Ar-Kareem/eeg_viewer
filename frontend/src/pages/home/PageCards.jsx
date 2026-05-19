@@ -65,15 +65,6 @@ const SLOP_CARDS = [
     stats: ["Amplitude", "Rhythmicity", "Jump"],
     icon: "HA",
   },
-  {
-    id: "channel-map",
-    title: "Channel Map",
-    kicker: "Electrodes",
-    description: "Group iEEG channels by label prefix and jump from channel chips into traces.",
-    action: "Open Map",
-    stats: ["Groups", "Labels", "Links"],
-    icon: "CM",
-  },
 ];
 
 function CardButton({ card, onOpen }) {
