@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
 import EegViewer from "./pages/eeg/EegViewer.jsx";
+import H5Explorer from "./pages/h5/H5Explorer.jsx";
 import PageCards from "./pages/home/PageCards.jsx";
 
 function parseLocation() {
   const parts = window.location.pathname.split("/").filter(Boolean);
+  if (parts[0] === "h5") {
+    return { page: "h5-explorer", eeg: {} };
+  }
+
   if (parts[0] !== "eeg") {
     return { page: "home", eeg: {} };
   }
@@ -35,6 +40,9 @@ export default function App() {
     if (page === "eeg-viewer") {
       window.history.pushState(null, "", "/eeg");
       setRoute(parseLocation());
+    } else if (page === "h5-explorer") {
+      window.history.pushState(null, "", "/h5");
+      setRoute(parseLocation());
     }
   };
 
@@ -45,6 +53,10 @@ export default function App() {
 
   if (route.page === "eeg-viewer") {
     return <EegViewer initialSelection={route.eeg} onBack={goHome} />;
+  }
+
+  if (route.page === "h5-explorer") {
+    return <H5Explorer onBack={goHome} />;
   }
 
   return <PageCards onOpen={openPage} />;
