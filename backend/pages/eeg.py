@@ -109,6 +109,71 @@ def read_channel_data(
     }
 
 
+def read_channel_snippets(
+    subject: str,
+    raw_stem: str,
+    channel: str,
+    start: int,
+    stop: int,
+    sample_rate: int,
+    count: int,
+) -> dict[str, object]:
+    if not CHANNEL_RE.match(channel):
+        raise ApiError(HTTPStatus.BAD_REQUEST, "Channel id must be numeric")
+
+    channel_index = int(channel)
+    sample_rate = max(1, min(sample_rate, 50_000))
+    count = max(1, min(count, 20))
+    _, h5_path = data_paths(subject, raw_stem)
+
+    with h5py.File(h5_path, "r") as h5_file:
+        group = h5_file["data"]
+        dataset_name = f"channel_{channel_index}"
+        if dataset_name not in group:
+            raise ApiError(HTTPStatus.NOT_FOUND, f"Channel {channel_index} was not found")
+
+        dataset = group[dataset_name]
+        total_samples = int(dataset.shape[-1])
+        start = max(0, min(start, total_samples))
+        stop = max(start, min(stop, total_samples))
+        snippet_size = min(sample_rate, max(0, stop - start))
+        if snippet_size <= 0:
+            return {"snippets": [], "snippet_sample_rate": sample_rate}
+
+        rng = np.random.default_rng()
+        max_snippet_start = stop - start - snippet_size
+        if max_snippet_start <= 0:
+            snippet_starts = np.array([0], dtype=np.int64)
+        else:
+            snippet_starts = np.sort(
+                rng.choice(
+                    max_snippet_start + 1,
+                    size=min(count, max_snippet_start + 1),
+                    replace=False,
+                )
+            )
+
+        cal = float(group["cal"][channel_index])
+        offset = float(group["offsets"][channel_index])
+        gain = float(group["gains"][channel_index])
+        snippets = []
+        for snippet_start in snippet_starts:
+            absolute_start = int(start + snippet_start)
+            absolute_stop = int(absolute_start + snippet_size)
+            raw = dataset[0, absolute_start:absolute_stop].astype(np.float64)
+            values = (raw * cal + offset) * gain
+            snippets.append(
+                {
+                    "start": absolute_start,
+                    "stop": absolute_stop,
+                    "x": np.arange(absolute_start, absolute_stop, dtype=np.int64).tolist(),
+                    "y": values.tolist(),
+                }
+            )
+
+    return {"snippets": snippets, "snippet_sample_rate": sample_rate}
+
+
 def read_all_channel_data(subject: str, raw_stem: str, max_points: int) -> dict[str, object]:
     channels = read_channels(subject, raw_stem)
     _, h5_path = data_paths(subject, raw_stem)
@@ -182,6 +247,19 @@ def api_data(
     points: Optional[int] = None,
 ) -> dict[str, object]:
     return read_channel_data(subject, file, channel, start, points, max_points)
+
+
+@router.get("/snippets")
+def api_snippets(
+    subject: str,
+    file: str,
+    channel: str,
+    start: int,
+    stop: int,
+    sample_rate: int = SNIPPET_SAMPLE_RATE,
+    count: int = SNIPPET_COUNT,
+) -> dict[str, object]:
+    return read_channel_snippets(subject, file, channel, start, stop, sample_rate, count)
 
 
 @router.get("/all-data")

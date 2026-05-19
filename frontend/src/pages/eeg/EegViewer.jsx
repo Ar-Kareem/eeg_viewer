@@ -65,13 +65,14 @@ function xHoverLabel(xScaleMode) {
   return xScaleMode === "seconds" ? "seconds" : "sample";
 }
 
-function EegChart({ data, xScaleMode, sampleRate, yRange }) {
+function EegChart({ data, snippets, xScaleMode, sampleRate, yRange, revision }) {
   if (!data) {
     return <div className="empty-chart">Select a subject, H5 file, and iEEG channel.</div>;
   }
 
   const xValues = formatXValues(data.x, xScaleMode, sampleRate);
-  const snippetShapes = (data.snippets || []).map((snippet, index) => ({
+  const activeSnippets = snippets || data.snippets || [];
+  const snippetShapes = activeSnippets.map((snippet, index) => ({
     type: "rect",
     xref: "x",
     yref: "paper",
@@ -84,7 +85,7 @@ function EegChart({ data, xScaleMode, sampleRate, yRange }) {
     line: { width: 0 },
     layer: "below",
   }));
-  const snippetAnnotations = (data.snippets || []).map((snippet, index) => ({
+  const snippetAnnotations = activeSnippets.map((snippet, index) => ({
     xref: "x",
     yref: "paper",
     x: formatXValue((snippet.start + snippet.stop) / 2, xScaleMode, sampleRate),
@@ -120,6 +121,8 @@ function EegChart({ data, xScaleMode, sampleRate, yRange }) {
           paper_bgcolor: "#fbfcfd",
           plot_bgcolor: "#fbfcfd",
           hovermode: "x unified",
+          datarevision: revision,
+          uirevision: `${data.subject}-${data.file}-${data.channel}-${data.start}-${data.stop}`,
           shapes: snippetShapes,
           annotations: snippetAnnotations,
           font: {
@@ -145,6 +148,7 @@ function EegChart({ data, xScaleMode, sampleRate, yRange }) {
             range: yRange,
           },
         }}
+        revision={revision}
         config={{
           responsive: true,
           displaylogo: false,
@@ -501,6 +505,8 @@ export default function EegViewer({ initialSelection = {}, onBack }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showAllChannels, setShowAllChannels] = useState(false);
   const [plotData, setPlotData] = useState(null);
+  const [snippetWindows, setSnippetWindows] = useState(null);
+  const [snippetRevision, setSnippetRevision] = useState(0);
   const [allChannelData, setAllChannelData] = useState(null);
   const [showMainPlotSettings, setShowMainPlotSettings] = useState(false);
   const [mainLowerPercentile, setMainLowerPercentile] = useState(0.25);
@@ -591,6 +597,8 @@ export default function EegViewer({ initialSelection = {}, onBack }) {
     setChannels([]);
     setChannel("");
     setPlotData(null);
+    setSnippetWindows(null);
+    setSnippetRevision(0);
     setAllChannelData(null);
     setStatus("Loading H5 files...");
     api("/api/files", { subject })
@@ -608,6 +616,8 @@ export default function EegViewer({ initialSelection = {}, onBack }) {
     setChannels([]);
     setChannel("");
     setPlotData(null);
+    setSnippetWindows(null);
+    setSnippetRevision(0);
     setAllChannelData(null);
     setStatus("Loading iEEG channels...");
     api("/api/channels", { subject, file })
@@ -635,6 +645,8 @@ export default function EegViewer({ initialSelection = {}, onBack }) {
     })
       .then((data) => {
         setPlotData(data);
+        setSnippetWindows(null);
+        setSnippetRevision((value) => value + 1);
         setStatus(`Loaded ${data.window_samples.toLocaleString()} samples`);
       })
       .catch((error) => setStatus(error.message))
@@ -642,24 +654,26 @@ export default function EegViewer({ initialSelection = {}, onBack }) {
   }, [subject, file, channel, normalizedMaxPoints, startSample, windowPoints]);
 
   const randomizeWindows = useCallback(() => {
-    if (!subject || !file || channel === "") return;
+    if (!subject || !file || channel === "" || !plotData) return;
     setIsLoading(true);
     setStatus("Randomizing sample windows...");
-    api("/api/data", {
+    api("/api/snippets", {
       subject,
       file,
       channel,
-      max_points: normalizedMaxPoints,
-      start: startSample,
-      points: windowPoints,
+      start: plotData.start,
+      stop: plotData.stop,
+      sample_rate: plotData.snippet_sample_rate || 1024,
+      count: 5,
     })
       .then((data) => {
-        setPlotData(data);
+        setSnippetWindows(data.snippets || []);
+        setSnippetRevision((value) => value + 1);
         setStatus("Randomized 5 sample windows");
       })
       .catch((error) => setStatus(error.message))
       .finally(() => setIsLoading(false));
-  }, [subject, file, channel, normalizedMaxPoints, startSample, windowPoints]);
+  }, [subject, file, channel, plotData]);
 
   const loadAllChannels = useCallback(() => {
     if (!subject || !file || !showAllChannels) return;
@@ -859,12 +873,19 @@ export default function EegViewer({ initialSelection = {}, onBack }) {
             </div>
           </div>
           <SnippetGrid
-            snippets={plotData?.snippets}
+            snippets={snippetWindows || plotData?.snippets}
             yRange={mainYRange}
             xScaleMode={xScaleMode}
             sampleRate={normalizedSampleRate}
           />
-          <EegChart data={plotData} xScaleMode={xScaleMode} sampleRate={normalizedSampleRate} yRange={mainYRange} />
+          <EegChart
+            data={plotData}
+            snippets={snippetWindows || plotData?.snippets}
+            xScaleMode={xScaleMode}
+            sampleRate={normalizedSampleRate}
+            yRange={mainYRange}
+            revision={snippetRevision}
+          />
         </section>
 
         {showAllChannels && (
