@@ -39,6 +39,15 @@ const SLOP_CARDS = [
     icon: "MG",
   },
   {
+    id: "artifact-review",
+    title: "Artifact Review",
+    kicker: "Candidate windows",
+    description: "Scan likely flatlines, saturation, high-frequency noise, and 60 Hz artifacts for review.",
+    action: "Open Artifacts",
+    stats: ["Flat", "Noise", "Labels"],
+    icon: "AR",
+  },
+  {
     id: "channel-quality",
     title: "Channel Quality",
     kicker: "QC ranking",
