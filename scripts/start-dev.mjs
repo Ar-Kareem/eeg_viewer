@@ -41,5 +41,16 @@ process.on("SIGTERM", () => shutdown(0));
 console.log("Backend:  http://127.0.0.1:8739");
 console.log("Frontend: http://127.0.0.1:5174");
 
-start("backend", "env3.9/bin/python", ["server.py"]);
+start("backend", "env3.9/bin/python", [
+  "-m",
+  "uvicorn",
+  "backend.app:app",
+  "--host",
+  "127.0.0.1",
+  "--port",
+  "8739",
+  "--reload",
+  "--reload-dir",
+  "backend",
+]);
 start("frontend", "npm", ["run", "dev", "--prefix", "frontend"]);

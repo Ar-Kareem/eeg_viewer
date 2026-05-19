@@ -9,6 +9,15 @@ const CARDS = [
     icon: "EEG",
   },
   {
+    id: "channel-quality",
+    title: "Channel Quality",
+    kicker: "QC ranking",
+    description: "Rank iEEG channels by noise, flatlines, missing values, outliers, and saturation signals.",
+    action: "Open QC",
+    stats: ["Noise", "Flatlines", "Outliers"],
+    icon: "QC",
+  },
+  {
     id: "h5-explorer",
     title: "H5 Explorer",
     kicker: "File internals",

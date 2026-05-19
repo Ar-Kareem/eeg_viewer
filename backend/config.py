@@ -1,0 +1,9 @@
+from pathlib import Path
+
+DATA_ROOT = Path("/storage/czw/mgh_focal_h5s_scaled")
+PORT = 8739
+SNIPPET_SAMPLE_RATE = 1024
+SNIPPET_COUNT = 5
+H5_PREVIEW_ITEMS = 16
+H5_SMALL_DATASET_LIMIT = 100_000
+QUALITY_MAX_POINTS = 5000

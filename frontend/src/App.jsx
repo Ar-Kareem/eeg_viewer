@@ -2,11 +2,15 @@ import { useEffect, useState } from "react";
 import EegViewer from "./pages/eeg/EegViewer.jsx";
 import H5Explorer from "./pages/h5/H5Explorer.jsx";
 import PageCards from "./pages/home/PageCards.jsx";
+import ChannelQualityDashboard from "./pages/quality/ChannelQualityDashboard.jsx";
 
 function parseLocation() {
   const parts = window.location.pathname.split("/").filter(Boolean);
   if (parts[0] === "h5") {
     return { page: "h5-explorer", eeg: {} };
+  }
+  if (parts[0] === "quality") {
+    return { page: "channel-quality", eeg: {} };
   }
 
   if (parts[0] !== "eeg") {
@@ -43,6 +47,9 @@ export default function App() {
     } else if (page === "h5-explorer") {
       window.history.pushState(null, "", "/h5");
       setRoute(parseLocation());
+    } else if (page === "channel-quality") {
+      window.history.pushState(null, "", "/quality");
+      setRoute(parseLocation());
     }
   };
 
@@ -57,6 +64,10 @@ export default function App() {
 
   if (route.page === "h5-explorer") {
     return <H5Explorer onBack={goHome} />;
+  }
+
+  if (route.page === "channel-quality") {
+    return <ChannelQualityDashboard onBack={goHome} />;
   }
 
   return <PageCards onOpen={openPage} />;
