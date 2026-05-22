@@ -53,6 +53,12 @@ function formatDuration(value) {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
+function formatDays(value) {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds <= 0) return "-";
+  return `${(seconds / 86400).toFixed(3)} days`;
+}
+
 function percentileRange(values, lowerPercentile, upperPercentile) {
   const sortedValues = values.filter((value) => Number.isFinite(value)).sort((a, b) => a - b);
   if (!sortedValues.length) return [0, 1];
@@ -633,6 +639,8 @@ export default function H5Explorer({ initialSelection = {}, onBack }) {
     return scanRows.reduce((sum, row) => sum + (Number(row.info?.recording_seconds) || 0), 0);
   }, [scanRows]);
 
+  const totalRecordingPending = scanRows.some((row) => row.status === "pending" || row.status === "scanning");
+
   const qualityRows = useMemo(() => {
     return [...(quality?.channels || [])].sort((a, b) => {
       const left = a[qualitySort.field];
@@ -785,7 +793,10 @@ export default function H5Explorer({ initialSelection = {}, onBack }) {
               </button>
             ))}
           </div>
-          <div className="h5-file-total">SUM {formatDuration(totalRecordingSeconds)}</div>
+          <div className="h5-file-total">
+            SUM {formatDays(totalRecordingSeconds)}
+            {totalRecordingPending ? <Spinner /> : null}
+          </div>
         </section>
 
         {info ? (

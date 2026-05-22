@@ -783,6 +783,9 @@ select:disabled {
 }
 
 .h5-file-total {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   width: fit-content;
   justify-self: end;
   margin-top: 8px;
