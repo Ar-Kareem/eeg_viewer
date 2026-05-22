@@ -14,6 +14,7 @@ const CHANNEL_COLORS = [
   "#e15759",
   "#76b7b2",
 ];
+const STACKED_GROUP_GAP = 0.36;
 
 async function api(path, params = {}) {
   const url = new URL(path, window.location.origin);
@@ -63,6 +64,33 @@ function xAxisTitle(xScaleMode) {
 
 function xHoverLabel(xScaleMode) {
   return xScaleMode === "seconds" ? "seconds" : "sample";
+}
+
+function channelGroup(label) {
+  const match = String(label || "").match(/^([A-Za-z_]+)/);
+  return match ? match[1] : String(label || "");
+}
+
+function stackedRowPositions(traces) {
+  if (!traces?.length) return { rows: [], separators: [], maxRow: 0 };
+
+  const rows = Array(traces.length);
+  const separators = [];
+  let row = 1;
+  rows[traces.length - 1] = row;
+
+  for (let index = traces.length - 2; index >= 0; index -= 1) {
+    const startsNewGroup = channelGroup(traces[index].label) !== channelGroup(traces[index + 1].label);
+    if (startsNewGroup) {
+      separators.push(row + 0.5 + STACKED_GROUP_GAP / 2);
+      row += 1 + STACKED_GROUP_GAP;
+    } else {
+      row += 1;
+    }
+    rows[index] = row;
+  }
+
+  return { rows, separators, maxRow: row };
 }
 
 function EegChart({ data, snippets, xScaleMode, sampleRate, yRange, revision }) {
@@ -232,9 +260,12 @@ function SnippetGrid({ snippets, yRange, xScaleMode, sampleRate }) {
 
 function AllChannelsChart({ data, lowerPercentile, upperPercentile, xScaleMode, sampleRate }) {
   const chartHeight = data?.traces?.length ? Math.max(900, data.traces.length * 34 + 160) : 620;
+  const { rows: stackedRows, separators: groupSeparatorRows, maxRow } = useMemo(
+    () => stackedRowPositions(data?.traces || []),
+    [data]
+  );
   const plotData = useMemo(() => {
     if (!data?.traces?.length) return [];
-    const rowCount = data.traces.length;
     const sortedValues = data.traces
       .flatMap((trace) => trace.y)
       .filter((value) => Number.isFinite(value))
@@ -248,7 +279,7 @@ function AllChannelsChart({ data, lowerPercentile, upperPercentile, xScaleMode, 
     const globalSpan = globalMax - globalMin || 1;
 
     return data.traces.map((trace, index) => {
-      const row = rowCount - index;
+      const row = stackedRows[index];
       return {
         x: formatXValues(trace.x, xScaleMode, sampleRate),
         y: trace.y.map((value) => row + ((value - globalMin) / globalSpan - 0.5) * 0.82),
@@ -262,13 +293,25 @@ function AllChannelsChart({ data, lowerPercentile, upperPercentile, xScaleMode, 
         customdata: trace.y,
       };
     });
-  }, [data, lowerPercentile, sampleRate, upperPercentile, xScaleMode]);
+  }, [data, lowerPercentile, sampleRate, stackedRows, upperPercentile, xScaleMode]);
 
   if (!data) {
     return <div className="empty-chart">Loading stacked iEEG traces...</div>;
   }
 
   const labels = data.traces.map((trace) => `${trace.id}: ${trace.label}`).reverse();
+  const tickValues = [...stackedRows].reverse();
+  const groupSeparators = groupSeparatorRows.map((separatorRow) => ({
+    type: "line",
+    xref: "paper",
+    yref: "y",
+    x0: 0,
+    x1: 1,
+    y0: separatorRow,
+    y1: separatorRow,
+    layer: "above",
+    line: { color: "rgba(23, 32, 42, 0.22)", width: 1 },
+  }));
 
   return (
     <Plot
@@ -283,6 +326,7 @@ function AllChannelsChart({ data, lowerPercentile, upperPercentile, xScaleMode, 
         paper_bgcolor: "#fbfcfd",
         plot_bgcolor: "#fbfcfd",
         hovermode: "closest",
+        shapes: groupSeparators,
         font: {
           family: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
           color: "#17202a",
@@ -297,9 +341,9 @@ function AllChannelsChart({ data, lowerPercentile, upperPercentile, xScaleMode, 
         },
         yaxis: {
           tickmode: "array",
-          tickvals: labels.map((_, index) => index + 1),
+          tickvals: tickValues,
           ticktext: labels,
-          range: [0.35, data.traces.length + 0.65],
+          range: [0.35, maxRow + 0.65],
           automargin: true,
           zeroline: false,
           gridcolor: "#edf2f6",
