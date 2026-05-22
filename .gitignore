@@ -3,3 +3,4 @@ __pycache__/
 env3.9
 node_modules/
 frontend/dist/
+backend/session_secret.txt
