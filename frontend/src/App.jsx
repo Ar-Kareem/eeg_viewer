@@ -9,6 +9,71 @@ import MontageBuilder from "./pages/montage/MontageBuilder.jsx";
 import ArtifactReview from "./pages/artifacts/ArtifactReview.jsx";
 import HighAmplitudeCandidates from "./pages/candidates/HighAmplitudeCandidates.jsx";
 
+async function authRequest(path, options = {}) {
+  const response = await fetch(path, {
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload.error || response.statusText);
+  }
+  return payload;
+}
+
+function LoginGate({ onLogin }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [status, setStatus] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const submit = (event) => {
+    event.preventDefault();
+    setLoading(true);
+    setStatus("");
+    authRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    })
+      .then(() => onLogin())
+      .catch((error) => setStatus(error.message))
+      .finally(() => setLoading(false));
+  };
+
+  return (
+    <main className="login-shell">
+      <form className="login-panel" onSubmit={submit}>
+        <div className="login-mark">Brain</div>
+        <div>
+          <p className="eyebrow">Internal access</p>
+          <h1>Sign in</h1>
+        </div>
+        <label className="field">
+          <span>Username</span>
+          <input autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} />
+        </label>
+        <label className="field">
+          <span>Password</span>
+          <input
+            autoComplete="current-password"
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </label>
+        {status ? <div className="login-error">{status}</div> : null}
+        <button className="primary" type="submit" disabled={loading}>
+          {loading ? "Signing in..." : "Sign in"}
+        </button>
+      </form>
+    </main>
+  );
+}
+
 function parseLocation() {
   const parts = window.location.pathname.split("/").filter(Boolean);
   if (parts[0] === "h5") {
@@ -64,11 +129,26 @@ function parseLocation() {
 
 export default function App() {
   const [route, setRoute] = useState(() => parseLocation());
+  const [authState, setAuthState] = useState("checking");
 
   useEffect(() => {
     const handlePopState = () => setRoute(parseLocation());
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    authRequest("/api/auth/me")
+      .then((payload) => {
+        if (!cancelled) setAuthState(payload.authenticated ? "authenticated" : "anonymous");
+      })
+      .catch(() => {
+        if (!cancelled) setAuthState("anonymous");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const openPage = (page) => {
@@ -103,6 +183,18 @@ export default function App() {
     window.history.pushState(null, "", "/");
     setRoute(parseLocation());
   };
+
+  if (authState === "checking") {
+    return (
+      <main className="login-shell">
+        <div className="login-panel">Checking session...</div>
+      </main>
+    );
+  }
+
+  if (authState !== "authenticated") {
+    return <LoginGate onLogin={() => setAuthState("authenticated")} />;
+  }
 
   if (route.page === "eeg-viewer") {
     return <EegViewer initialSelection={route.eeg} onBack={goHome} />;
