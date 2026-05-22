@@ -62,7 +62,7 @@ process.on("uncaughtException", (error) => {
 });
 
 console.log("Backend:  http://0.0.0.0:8739");
-console.log("Frontend: http://0.0.0.0:5174");
+console.log("Frontend: http://0.0.0.0:5000");
 
 start("backend", "env3.9/bin/python", [
   "-m",
@@ -76,4 +76,4 @@ start("backend", "env3.9/bin/python", [
   "--reload-dir",
   "backend",
 ]);
-start("frontend", "npm", ["run", "dev", "--prefix", "frontend", "--", "--host", "0.0.0.0", "--port", "5174", "--strictPort"]);
+start("frontend", "npm", ["run", "dev", "--prefix", "frontend", "--", "--host", "0.0.0.0", "--port", "5000", "--strictPort"]);
